@@ -1,0 +1,34 @@
+name: Fetch decomp toolchain v2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fetch-decomp-toolchain-v2.yml"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Download Python packages
+        run: |
+          mkdir -p bundle/wheels
+          python -m pip download --dest bundle/wheels             setuptools wheel             ninja_syntax             'splat64[mips]==0.24.4'             'spimdisasm==1.26.0'
+
+      - name: Download MIPS binutils package
+        run: |
+          mkdir -p bundle/debs
+          cd bundle/debs
+          apt-get download binutils-mips-linux-gnu
+
+      - name: Upload toolchain bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mp1-decomp-toolchain-v2
+          path: bundle
+          if-no-files-found: error
+          retention-days: 1
