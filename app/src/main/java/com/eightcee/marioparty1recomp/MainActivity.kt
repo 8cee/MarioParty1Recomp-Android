@@ -2,6 +2,9 @@ package com.eightcee.marioparty1recomp
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.view.View
+import android.view.WindowManager
 import android.provider.OpenableColumns
 import android.view.Gravity
 import android.widget.Button
@@ -26,6 +29,20 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Diagnostics.i("UI", "MainActivity created")
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+            View.SYSTEM_UI_FLAG_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
