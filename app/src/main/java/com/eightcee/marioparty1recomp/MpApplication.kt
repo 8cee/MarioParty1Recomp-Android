@@ -8,6 +8,11 @@ class MpApplication : Application() {
         super.onCreate()
         Diagnostics.init(this)
         Diagnostics.i("APP", "Application started")
-        Diagnostics.i("APP", "version=" + BuildConfig.VERSION_NAME)
+        val versionName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"
+        } catch (_: Exception) {
+            "unknown"
+        }
+        Diagnostics.i("APP", "version=" + versionName)
     }
 }
