@@ -5,6 +5,10 @@ import android.os.Bundle
 import android.os.Build
 import android.view.View
 import android.view.WindowManager
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.InputDevice
+import kotlin.math.abs
 import android.provider.OpenableColumns
 import android.view.Gravity
 import android.widget.Button
@@ -136,5 +140,55 @@ class MainActivity : AppCompatActivity() {
             Diagnostics.e("ROM", "ROM import failed", t)
             status.text = "ROM import failed: ${t.message}"
         }
+    }
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val source = event.source
+        val isGamepad = (source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+            (source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        if (!isGamepad) return super.dispatchKeyEvent(event)
+
+        val id = when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> VirtualPadView.BTN_A
+            KeyEvent.KEYCODE_BUTTON_B -> VirtualPadView.BTN_B
+            KeyEvent.KEYCODE_BUTTON_L1 -> VirtualPadView.BTN_L
+            KeyEvent.KEYCODE_BUTTON_R1 -> VirtualPadView.BTN_R
+            KeyEvent.KEYCODE_BUTTON_L2 -> VirtualPadView.BTN_Z
+            KeyEvent.KEYCODE_BUTTON_START -> VirtualPadView.BTN_START
+            KeyEvent.KEYCODE_DPAD_UP -> VirtualPadView.BTN_DPAD_UP
+            KeyEvent.KEYCODE_DPAD_DOWN -> VirtualPadView.BTN_DPAD_DOWN
+            KeyEvent.KEYCODE_DPAD_LEFT -> VirtualPadView.BTN_DPAD_LEFT
+            KeyEvent.KEYCODE_DPAD_RIGHT -> VirtualPadView.BTN_DPAD_RIGHT
+            else -> -1
+        }
+        if (id < 0) return super.dispatchKeyEvent(event)
+
+        val pressed = event.action == KeyEvent.ACTION_DOWN
+        RuntimeBridge.setButton(id, pressed)
+        if (event.repeatCount == 0) {
+            Diagnostics.i("INPUT", "controller button id=$id pressed=$pressed device=${event.device?.name}")
+        }
+        return true
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        val isJoystick = (event.source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        if (!isJoystick || event.action != MotionEvent.ACTION_MOVE) {
+            return super.onGenericMotionEvent(event)
+        }
+
+        fun axis(axis: Int): Float {
+            val value = event.getAxisValue(axis)
+            return if (abs(value) < 0.08f) 0f else value.coerceIn(-1f, 1f)
+        }
+
+        RuntimeBridge.setAxis(axis(MotionEvent.AXIS_X), -axis(MotionEvent.AXIS_Y))
+
+        val cx = axis(MotionEvent.AXIS_Z)
+        val cy = axis(MotionEvent.AXIS_RZ)
+        RuntimeBridge.setButton(VirtualPadView.BTN_C_LEFT, cx < -0.5f)
+        RuntimeBridge.setButton(VirtualPadView.BTN_C_RIGHT, cx > 0.5f)
+        RuntimeBridge.setButton(VirtualPadView.BTN_C_UP, cy < -0.5f)
+        RuntimeBridge.setButton(VirtualPadView.BTN_C_DOWN, cy > 0.5f)
+        return true
     }
 }
