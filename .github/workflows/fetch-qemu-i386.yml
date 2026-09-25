@@ -1,0 +1,25 @@
+name: Fetch qemu i386 runtime
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fetch-qemu-i386.yml"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download qemu-user-static
+        run: |
+          mkdir -p bundle/debs
+          cd bundle/debs
+          apt-get download qemu-user-static
+
+      - name: Upload qemu bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mp1-qemu-i386
+          path: bundle
+          if-no-files-found: error
+          retention-days: 1
