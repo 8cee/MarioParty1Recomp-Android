@@ -17,15 +17,12 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path("N64Recomp/src/recompilation.cpp")
           s = p.read_text()
-          old = """            if (matched_funcs.size() == 0) {
-                  return JalResolutionResult::NoMatch;
-              }"""
-          new = """            if (matched_funcs.size() == 0) {
-                  // Static overlays can share one VRAM address. If symbols exist
-                  // at this target but every candidate belongs to a relocatable
-                  // section, the loaded overlay must be selected at runtime.
+          pattern = r'(if \(matched_funcs\.size\(\) == 0\) \{\s*)(return JalResolutionResult::NoMatch;)(\s*\})'
+          replacement = r'''\1// Static overlays can share one VRAM address. If symbols exist
+                  // only in relocatable sections, select the loaded overlay at runtime.
                   if (matching_funcs_find != context.functions_by_vram.end()) {
                       for (size_t target_func_index : matching_funcs_find->second) {
                           const auto& target_func = context.functions[target_func_index];
@@ -35,11 +32,11 @@ jobs:
                           }
                       }
                   }
-                  return JalResolutionResult::NoMatch;
-              }"""
-          if old not in s:
-              raise SystemExit("Expected N64Recomp source block not found")
-          p.write_text(s.replace(old, new, 1))
+                  \2\3'''
+          out, n = re.subn(pattern, replacement, s, count=1)
+          if n != 1:
+              raise SystemExit(f"Expected one N64Recomp source block, found {n}")
+          p.write_text(out)
           PY
 
       - name: Configure
