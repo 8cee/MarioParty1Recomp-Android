@@ -1,0 +1,39 @@
+name: Validate MP1 runtime compatibility
+
+on:
+  push:
+    paths:
+      - "recomp/runtime/**"
+      - "recomp/patch-generated-process-runtime.py"
+      - ".github/workflows/validate-runtime-compat.yml"
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone N64ModernRuntime
+        run: git clone --recurse-submodules https://github.com/N64Recomp/N64ModernRuntime.git N64ModernRuntime
+
+      - name: Provide generated-function declarations
+        run: |
+          mkdir -p generated
+          cat > generated/funcs.h <<'EOF'
+          #pragma once
+          #include <stdint.h>
+          #include "recomp.h"
+          #ifdef __cplusplus
+          extern "C" {
+          #endif
+          void HuPrcEnd(uint8_t* rdram, recomp_context* ctx);
+          void HuMemDirectFree(uint8_t* rdram, recomp_context* ctx);
+          #ifdef __cplusplus
+          }
+          #endif
+          EOF
+
+      - name: Compile Mario Party runtime bridge
+        run: |
+          c++ -std=c++20 -Wall -Wextra -Werror -c             recomp/runtime/mp1_process_runtime.cpp             -Igenerated             -IN64ModernRuntime/N64Recomp/include             -IN64ModernRuntime/ultramodern/include             -IN64ModernRuntime/librecomp/include             -IN64ModernRuntime/thirdparty             -IN64ModernRuntime/thirdparty/concurrentqueue             -o /tmp/mp1_process_runtime.o
