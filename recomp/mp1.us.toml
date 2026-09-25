@@ -1,14 +1,17 @@
-# Mario Party 1 (USA) N64Recomp configuration scaffold.
-#
-# This is intentionally not pretending metadata is complete yet.
-# N64Recomp requires the decomp-produced ELF plus section/overlay metadata.
-# Fill the entrypoint and section configuration only from verified build output.
+# Verified Mario Party 1 (USA) N64Recomp configuration.
+# Paths are relative to this file in recomp/.
+# Generated/tested against mariopartyrd/marioparty and the clean CLBE US ROM.
 
 [input]
-elf_path = ".mp1-build/marioparty/build/marioparty.elf"
-rom_file_path = ".mp1-build/marioparty/baserom.us.z64"
-output_func_path = "recomp/generated"
+entrypoint = 0x80000400
+elf_path = "../.mp1-build/marioparty/build/marioparty.elf"
+rom_file_path = "../.mp1-build/marioparty/baserom.us.z64"
+output_func_path = "generated"
+relocatable_sections_path = "mp1.us.overlays.txt"
+functions_per_output_file = 50
 
 [patches]
-stubs = []
+# 64DD boot helper uses an unsupported stack-alignment pattern in N64Recomp.
+# Mario Party's standard cartridge runtime does not require the 64DD boot path.
+stubs = ["__LeoBootGame2"]
 ignored = []
