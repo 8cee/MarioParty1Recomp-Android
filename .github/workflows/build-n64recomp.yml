@@ -1,0 +1,35 @@
+name: Build N64Recomp tool
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-n64recomp.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone N64Recomp
+        run: git clone --recurse-submodules https://github.com/N64Recomp/N64Recomp.git N64Recomp
+
+      - name: Configure
+        run: cmake -S N64Recomp -B N64Recomp/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build N64Recomp/build -j2
+
+      - name: Collect executable
+        run: |
+          mkdir -p out
+          find N64Recomp/build -type f -executable -maxdepth 5 -print
+          find N64Recomp/build -type f -executable -maxdepth 5 -name 'N64Recomp*' -exec cp {} out/ \;
+          test -n "$(find out -type f -maxdepth 1 -print -quit)"
+
+      - name: Upload tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: n64recomp-linux
+          path: out
+          if-no-files-found: error
+          retention-days: 1
