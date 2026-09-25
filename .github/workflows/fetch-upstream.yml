@@ -1,0 +1,25 @@
+name: Fetch Mario Party upstream source
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fetch-upstream.yml"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone public Mario Party decomp source
+        run: git clone --depth 1 https://github.com/mariopartyrd/marioparty.git marioparty
+
+      - name: Remove Git metadata
+        run: rm -rf marioparty/.git
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marioparty-upstream-source
+          path: marioparty
+          if-no-files-found: error
+          retention-days: 1
