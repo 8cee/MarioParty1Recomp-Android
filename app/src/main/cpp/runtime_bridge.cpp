@@ -6,6 +6,13 @@
 #define LOG_TAG "MP1Runtime"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
+#include <atomic>
+
+static std::atomic<unsigned int> g_buttons{0};
+static std::atomic<float> g_axis_x{0.0f};
+static std::atomic<float> g_axis_y{0.0f};
+static std::atomic<bool> g_game_started{false};
+
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_eightcee_marioparty1recomp_RuntimeBridge_initialize(
@@ -27,14 +34,6 @@ Java_com_eightcee_marioparty1recomp_RuntimeBridge_initialize(
     env->ReleaseStringUTFChars(romPath, path);
     return env->NewStringUTF(result.c_str());
 }
-
-
-#include <atomic>
-
-static std::atomic<unsigned int> g_buttons{0};
-static std::atomic<float> g_axis_x{0.0f};
-static std::atomic<float> g_axis_y{0.0f};
-static std::atomic<bool> g_game_started{false};
 
 extern "C"
 JNIEXPORT void JNICALL
