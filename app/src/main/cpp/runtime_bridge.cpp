@@ -11,7 +11,41 @@
 static std::atomic<unsigned int> g_buttons{0};
 static std::atomic<float> g_axis_x{0.0f};
 static std::atomic<float> g_axis_y{0.0f};
-static std::atomic<bool> g_game_started{false};
+static std::atomic<bool> g_game_started{false};\n
+struct Mp1AndroidInputState {
+    unsigned int buttons;
+    float stick_x;
+    float stick_y;
+};
+
+extern "C" Mp1AndroidInputState mp1_android_poll_input() {
+    return Mp1AndroidInputState{
+        g_buttons.load(std::memory_order_relaxed),
+        g_axis_x.load(std::memory_order_relaxed),
+        g_axis_y.load(std::memory_order_relaxed)
+    };
+}
+
+extern "C" void mp1_android_reset_input() {
+    g_buttons.store(0, std::memory_order_relaxed);
+    g_axis_x.store(0.0f, std::memory_order_relaxed);
+    g_axis_y.store(0.0f, std::memory_order_relaxed);
+}
+
+// Runtime-facing helpers deliberately contain no Android UI dependencies.
+// Generated/recompiled Mario Party code can poll these from the emulation thread.
+extern "C" unsigned int mp1_android_buttons() {
+    return g_buttons.load(std::memory_order_relaxed);
+}
+
+extern "C" float mp1_android_stick_x() {
+    return g_axis_x.load(std::memory_order_relaxed);
+}
+
+extern "C" float mp1_android_stick_y() {
+    return g_axis_y.load(std::memory_order_relaxed);
+}
+
 
 extern "C"
 JNIEXPORT jstring JNICALL
