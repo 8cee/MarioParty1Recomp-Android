@@ -68,3 +68,25 @@ JNIEXPORT jboolean JNICALL
 Java_com_eightcee_marioparty1recomp_VirtualPadView_nativeIsGameStarted(JNIEnv*, jobject) {
     return g_game_started.load() ? JNI_TRUE : JNI_FALSE;
 }
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_eightcee_marioparty1recomp_RuntimeBridge_setButton(
+        JNIEnv*, jobject, jint id, jboolean pressed) {
+    if (id < 0 || id >= 31) return;
+    const unsigned int mask = 1u << static_cast<unsigned int>(id);
+    unsigned int current = g_buttons.load();
+    unsigned int next;
+    do {
+        next = pressed ? (current | mask) : (current & ~mask);
+    } while (!g_buttons.compare_exchange_weak(current, next));
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_eightcee_marioparty1recomp_RuntimeBridge_setAxis(
+        JNIEnv*, jobject, jfloat x, jfloat y) {
+    g_axis_x.store(x);
+    g_axis_y.store(y);
+}
