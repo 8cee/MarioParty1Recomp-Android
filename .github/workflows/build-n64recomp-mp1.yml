@@ -39,6 +39,19 @@ jobs:
           p.write_text(out)
           PY
 
+      - name: Fix Mario Party longjmp runtime classification
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("N64Recomp/src/symbol_lists.cpp")
+          s = p.read_text()
+          old = '    "setjmp",\n    "longjmp"\n    // 64-bit functions for banjo'
+          new = '    "setjmp",\n    "longjmp",\n    // 64-bit functions for banjo'
+          if old not in s:
+              raise SystemExit("Expected Mario Party setjmp/longjmp block not found")
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Configure
         run: cmake -S N64Recomp -B N64Recomp/build -DCMAKE_BUILD_TYPE=Release
 
