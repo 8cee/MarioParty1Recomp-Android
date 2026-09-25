@@ -1,0 +1,25 @@
+name: Fetch MIPS binutils runtime
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fetch-mips-runtime.yml"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download cross-binutils and runtime libraries
+        run: |
+          mkdir -p bundle/debs
+          cd bundle/debs
+          apt-get download             binutils-mips-linux-gnu             binutils-mips-linux-gnu-dbg             binutils-common             libbinutils             libctf-nobfd0             libctf0             libsframe1             zlib1g             libzstd1
+
+      - name: Upload runtime bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mp1-mips-runtime
+          path: bundle
+          if-no-files-found: error
+          retention-days: 1
