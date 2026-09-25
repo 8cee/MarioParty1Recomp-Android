@@ -1,0 +1,63 @@
+name: Build MP1-patched N64Recomp
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-n64recomp-mp1.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone N64Recomp
+        run: git clone --recurse-submodules https://github.com/N64Recomp/N64Recomp.git N64Recomp
+
+      - name: Patch overlay JAL resolution
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("N64Recomp/src/recompilation.cpp")
+          s = p.read_text()
+          old = """            if (matched_funcs.size() == 0) {
+                  return JalResolutionResult::NoMatch;
+              }"""
+          new = """            if (matched_funcs.size() == 0) {
+                  // Static overlays can share one VRAM address. If symbols exist
+                  // at this target but every candidate belongs to a relocatable
+                  // section, the loaded overlay must be selected at runtime.
+                  if (matching_funcs_find != context.functions_by_vram.end()) {
+                      for (size_t target_func_index : matching_funcs_find->second) {
+                          const auto& target_func = context.functions[target_func_index];
+                          if (!target_func.words.empty() &&
+                              context.sections[target_func.section_index].relocatable) {
+                              return JalResolutionResult::Ambiguous;
+                          }
+                      }
+                  }
+                  return JalResolutionResult::NoMatch;
+              }"""
+          if old not in s:
+              raise SystemExit("Expected N64Recomp source block not found")
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Configure
+        run: cmake -S N64Recomp -B N64Recomp/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build N64Recomp/build -j2
+
+      - name: Collect executable
+        run: |
+          mkdir -p out
+          find N64Recomp/build -type f -executable -name 'N64Recomp*' -exec cp {} out/ \;
+          test -n "$(find out -type f -maxdepth 1 -print -quit)"
+
+      - name: Upload tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: n64recomp-mp1-linux
+          path: out
+          if-no-files-found: error
+          retention-days: 1
