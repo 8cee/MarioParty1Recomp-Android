@@ -1,0 +1,14 @@
+# Mario Party 1 (USA) N64Recomp configuration scaffold.
+#
+# This is intentionally not pretending metadata is complete yet.
+# N64Recomp requires the decomp-produced ELF plus section/overlay metadata.
+# Fill the entrypoint and section configuration only from verified build output.
+
+[input]
+elf_path = ".mp1-build/marioparty/build/marioparty.elf"
+rom_file_path = ".mp1-build/marioparty/baserom.us.z64"
+output_func_path = "recomp/generated"
+
+[patches]
+stubs = []
+ignored = []
