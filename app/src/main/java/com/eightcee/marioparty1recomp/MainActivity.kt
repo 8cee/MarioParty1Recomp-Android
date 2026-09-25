@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.Gravity
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
                 val result = RuntimeBridge.initialize(rom.absolutePath)
                 Diagnostics.i("RUNTIME", result)
                 status.text = result
+                VirtualPadView.onGameStarted(result.startsWith("Native runtime initialized"))
             }
         }
         layout.addView(launchButton)
@@ -66,7 +68,16 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { Diagnostics.exportLog(this@MainActivity) }
         })
 
-        setContentView(layout)
+        val root = FrameLayout(this)
+        root.addView(layout, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        root.addView(VirtualPadView(this), FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        setContentView(root)
 
         val cached = File(filesDir, "roms/marioparty.us.z64")
         if (cached.exists()) {
