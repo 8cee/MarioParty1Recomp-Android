@@ -22,6 +22,12 @@ android {
         debug { isDebuggable = true; applicationIdSuffix = ".debug"; versionNameSuffix = "-debug" }
         release { isMinifyEnabled = false }
     }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
