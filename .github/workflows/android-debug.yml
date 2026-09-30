@@ -9,6 +9,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,18 +21,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Use preinstalled Android SDK
+      - name: Android SDK and NDK
         run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
-      - name: Install NDK
-        run: sdkmanager 'ndk;27.2.12479018' 'cmake;3.22.1'
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.2.12479018" \
+            "cmake;3.22.1"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
       - name: Verify generated game code
         run: |
           test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)" || { echo 'Generated MP1 code is intentionally not stored in the public repo.'; exit 1; }
           test -s recomp/rsp/aspMain.cpp
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: MarioParty1Recomp-debug-apk
