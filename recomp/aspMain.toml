@@ -1,0 +1,6 @@
+[input]
+elf_path = "../.mp1-build/marioparty/build/marioparty.elf"
+output_file_path = "rsp/aspMain.cpp"
+
+[output]
+output_function_name = "aspMain"
