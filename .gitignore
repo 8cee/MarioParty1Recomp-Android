@@ -1,0 +1,16 @@
+/.gradle/
+/build/
+/app/build/
+/.idea/
+/local.properties
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+/.mp1-build/
+/recomp/generated/
+/recomp/rsp/
+*.z64
+*.n64
+*.v64
