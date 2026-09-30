@@ -37,7 +37,7 @@ jobs:
           test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)" || { echo 'Generated MP1 code is intentionally not stored in the public repo.'; exit 1; }
           test -s recomp/rsp/aspMain.cpp
       - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        run: bash tools/android/build_android.sh
       - uses: actions/upload-artifact@v4
         with:
           name: MarioParty1Recomp-debug-apk
