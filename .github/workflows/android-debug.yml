@@ -1,0 +1,32 @@
+name: Android Debug APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+concurrency:
+  group: mp1-android-debug
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install NDK
+        run: sdkmanager 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: Verify generated game code
+        run: |
+          test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)" || { echo 'Generated MP1 code is intentionally not stored in the public repo.'; exit 1; }
+          test -s recomp/rsp/aspMain.cpp
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarioParty1Recomp-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
