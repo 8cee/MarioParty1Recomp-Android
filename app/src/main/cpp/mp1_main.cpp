@@ -25,6 +25,9 @@ extern "C" void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);
 gpr get_entrypoint_address();
 RspUcodeFunc* mp1_get_rsp_microcode(const OSTask* task);
 extern "C" void mp1_android_pad_state(unsigned short* buttons, float* x, float* y);
+extern "C" void mp1_diag_set_directory(const char* directory);
+extern "C" void mp1_diag(const char* stage, const char* detail);
+extern "C" void mp1_diag_error(const char* stage, const char* detail);
 
 namespace {
 constexpr std::uint64_t kMarioPartyUsXxh3 = 0x19f905a0cbc9fe8fULL;
@@ -225,7 +228,11 @@ int main(int argc, char** argv) {
     const std::filesystem::path config_path = argv[1];
     const std::filesystem::path rom_path = argv[2];
 
+    mp1_diag_set_directory(config_path.string().c_str());
+    mp1_diag("startup", "native runtime entered");
+
     if (!std::filesystem::is_regular_file(rom_path)) {
+        mp1_diag_error("startup", "imported Mario Party ROM is missing");
         log_error("Imported Mario Party ROM is missing.");
         return 3;
     }
@@ -242,13 +249,19 @@ int main(int argc, char** argv) {
     std::u8string game_id = u8"mp1_us";
     const auto validation = recomp::select_rom(rom_path, game_id);
     if (validation != recomp::RomValidationError::Good) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "Runtime ROM validation failed: %d", static_cast<int>(validation));
+        char validation_message[96];
+        std::snprintf(validation_message, sizeof(validation_message),
+            "runtime ROM validation failed: %d", static_cast<int>(validation));
+        mp1_diag_error("rom", validation_message);
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "%s", validation_message);
         return 4;
     }
 
     if (!init_audio()) {
+        mp1_diag_error("audio", "SDL audio initialization failed");
         return 5;
     }
+    mp1_diag("audio", "SDL audio initialized");
 
     recomp::rsp::callbacks_t rsp_callbacks{
         .get_rsp_microcode = mp1_get_rsp_microcode,
@@ -297,9 +310,11 @@ int main(int argc, char** argv) {
         },
     };
 
+    mp1_diag("runtime", "starting Mario Party native runtime");
     __android_log_print(ANDROID_LOG_INFO, kTag, "Starting Mario Party native runtime");
     recomp::start_game(game_id, {});
     recomp::start(cfg);
+    mp1_diag("runtime", "runtime returned to Android main");
 
     if (g_audio_stream != nullptr) {
         SDL_FreeAudioStream(g_audio_stream);
