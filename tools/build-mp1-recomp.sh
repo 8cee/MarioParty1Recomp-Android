@@ -66,7 +66,7 @@ git -C .mp1-build/N64Recomp submodule update --init --recursive
 python3 recomp/patch-n64recomp-mp1.py
 python3 recomp/patch-n64recomp-runtime.py
 cmake -S .mp1-build/N64Recomp -B .mp1-build/N64Recomp/build -DCMAKE_BUILD_TYPE=Release
-cmake --build .mp1-build/N64Recomp/build -j"$(nproc)"
+cmake --build .mp1-build/N64Recomp/build --target N64RecompCLI RSPRecomp -j"$(nproc)"
 rm -rf recomp/generated recomp/rsp
 mkdir -p recomp/generated recomp/rsp
 (cd recomp && ../.mp1-build/N64Recomp/build/N64Recomp mp1.us.toml)
