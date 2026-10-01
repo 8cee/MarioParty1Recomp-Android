@@ -7,7 +7,12 @@ static std::atomic<float> g_x{0.0f}, g_y{0.0f};
 
 extern "C" void mp1_android_pad_state(unsigned short* buttons, float* x, float* y) {
     *buttons |= static_cast<unsigned short>(g_buttons.load());
-    *x = g_x.load(); *y = g_y.load();
+    const float tx = g_x.load();
+    const float ty = g_y.load();
+    if ((tx * tx + ty * ty) > 0.0001f) {
+        *x = tx;
+        *y = ty;
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_eightcee_marioparty1recomp_RuntimeBridge_setVirtualPad(JNIEnv*, jobject, jint b, jfloat x, jfloat y) {
