@@ -4,7 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ROM="${1:-}"
 EXPECTED="1159bd56730094bfc71be30113e1cfc8bacf34f3"
 DECOMP_REPO="${MP1_DECOMP_REPO:-https://github.com/mariopartyrd/marioparty.git}"
-DECOMP_REF="${MP1_DECOMP_REF:-main}"
+DECOMP_REF="${MP1_DECOMP_REF:-master}"
 [[ -f "$ROM" ]] || { echo "usage: $0 /path/to/MarioParty-USA.z64"; exit 2; }
 [[ "$(sha1sum "$ROM" | awk '{print $1}')" == "$EXPECTED" ]] || { echo "Unsupported ROM"; exit 3; }
 mkdir -p "$ROOT/.mp1-build"
@@ -22,7 +22,9 @@ make -j"$(nproc)"
 test -f build/marioparty.elf
 cd "$ROOT"
 if [[ ! -d .mp1-build/N64Recomp/.git ]]; then git clone https://github.com/N64Recomp/N64Recomp.git .mp1-build/N64Recomp; fi
-python3 recomp/patch-n64recomp-mp1.py\npython3 recomp/patch-n64recomp-runtime.py\ncmake -S .mp1-build/N64Recomp -B .mp1-build/N64Recomp/build -DCMAKE_BUILD_TYPE=Release
+python3 recomp/patch-n64recomp-mp1.py
+python3 recomp/patch-n64recomp-runtime.py
+cmake -S .mp1-build/N64Recomp -B .mp1-build/N64Recomp/build -DCMAKE_BUILD_TYPE=Release
 cmake --build .mp1-build/N64Recomp/build -j"$(nproc)"
 rm -rf recomp/generated recomp/rsp
 mkdir -p recomp/generated recomp/rsp
