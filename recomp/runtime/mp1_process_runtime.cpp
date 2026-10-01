@@ -29,6 +29,7 @@ constexpr uint32_t kStat       = 0x1E;
 constexpr uint32_t kSleepTime  = 0x24;
 constexpr uint32_t kJumpSp     = 0x2C;
 constexpr uint32_t kJumpFunc   = 0x30;
+constexpr uint32_t kDestructor = 0x88;
 constexpr uint32_t kOldestChild = 0x08;
 
 constexpr uint16_t kExecDefault  = 0;
@@ -340,6 +341,13 @@ extern "C" void HuPrcTerminate(uint8_t* rdram, recomp_context* ctx) {
     uint32_t process = static_cast<uint32_t>(ctx->r4);
     if (process == 0) {
         process = host->process;
+    }
+
+    const uint32_t destructor = read32(rdram, process + kDestructor);
+    if (destructor != 0) {
+        // The original HuPrcTerminate runs the destructor in the terminating
+        // process context before unlinking/freeing its process heap.
+        call_guest(host, destructor);
     }
 
     const uint32_t heap = read32(rdram, process + kHeap);
