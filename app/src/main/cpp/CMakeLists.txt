@@ -43,6 +43,7 @@ add_library(main SHARED
     diagnostics.cpp
     mp1_main.cpp
     "${MP1_ROOT}/recomp/runtime/mp1_rsp_runtime.cpp"
+    "${MP1_ROOT}/recomp/runtime/mp1_process_runtime.cpp"
     "${MP1_ROOT}/recomp/rsp/aspMain.cpp"
 )
 target_include_directories(main PRIVATE
