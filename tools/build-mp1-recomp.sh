@@ -22,7 +22,7 @@ make -j"$(nproc)"
 test -f build/marioparty.elf
 cd "$ROOT"
 if [[ ! -d .mp1-build/N64Recomp/.git ]]; then git clone https://github.com/N64Recomp/N64Recomp.git .mp1-build/N64Recomp; fi
-python3 recomp/patch-n64recomp-mp1.py\ncmake -S .mp1-build/N64Recomp -B .mp1-build/N64Recomp/build -DCMAKE_BUILD_TYPE=Release
+python3 recomp/patch-n64recomp-mp1.py\npython3 recomp/patch-n64recomp-runtime.py\ncmake -S .mp1-build/N64Recomp -B .mp1-build/N64Recomp/build -DCMAKE_BUILD_TYPE=Release
 cmake --build .mp1-build/N64Recomp/build -j"$(nproc)"
 rm -rf recomp/generated recomp/rsp
 mkdir -p recomp/generated recomp/rsp
