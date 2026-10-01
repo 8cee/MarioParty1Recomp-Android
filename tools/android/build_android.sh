@@ -33,5 +33,11 @@ gradle --no-daemon -PHOST_FILE_TO_C="$HOST_FILE_TO_C" :app:assembleDebug
 
 APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
 test -f "$APK"
-unzip -l "$APK" | grep -q 'lib/arm64-v8a/libmain.so'
+unzip -l "$APK" > "$ROOT/.mp1-build/apk-contents.txt"
+grep -q 'lib/arm64-v8a/libmain.so' "$ROOT/.mp1-build/apk-contents.txt"
+if grep -Eqi '\.(z64|n64|v64)( |$)|baserom|decompressed' "$ROOT/.mp1-build/apk-contents.txt"; then
+  echo "[android] ROM-derived input unexpectedly packaged in APK"
+  exit 3
+fi
+sha256sum "$APK"
 echo "[android] built $APK"
