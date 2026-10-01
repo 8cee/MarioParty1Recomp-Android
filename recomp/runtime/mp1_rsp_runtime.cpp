@@ -1,9 +1,17 @@
-#include <cstdint>
-struct recomp_context;
-extern "C" void aspMain(uint8_t*, recomp_context*);
+#include <cstdio>
+#include <cinttypes>
 
-// Mario Party uses the standard audio RSP task. Kept isolated so the Android
-// runtime can share the same dispatch shape as the working BM64 port.
-extern "C" void* mp1_audio_rsp_entry() {
-    return reinterpret_cast<void*>(&aspMain);
+#include "librecomp/rsp.hpp"
+#include "ultramodern/ultra64.h"
+
+extern RspUcodeFunc aspMain;
+
+RspUcodeFunc* mp1_get_rsp_microcode(const OSTask* task) {
+    switch (task->t.type) {
+        case M_AUDTASK:
+            return aspMain;
+        default:
+            std::fprintf(stderr, "MP1: unknown RSP task type %" PRIu32 "\n", task->t.type);
+            return nullptr;
+    }
 }
