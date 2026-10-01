@@ -235,6 +235,7 @@ int main(int argc, char** argv) {
     recomp::register_config_path(config_path);
     recomp::register_game(mario_party_us);
 
+    recompinput::profiles::initialize_input_bindings();
     recompinput::players::set_single_player_mode(true);
     recompinput::profiles::load_controls_config(config_path / "controls.json");
 
