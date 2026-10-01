@@ -205,7 +205,7 @@ ultramodern::input::connected_device_info_t get_connected_device_info(int contro
 
 recomp::GameEntry mario_party_us{
     .rom_hash = kMarioPartyUsXxh3,
-    .internal_name = "MARIO PARTY",
+    .internal_name = "MarioParty",
     .display_name = "Mario Party",
     .game_id = u8"mp1_us",
     .mod_game_id = "",
