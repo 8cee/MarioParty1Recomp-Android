@@ -16,8 +16,9 @@ cd "$ROOT/.mp1-build/marioparty"
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt pyelftools
-python3 -m splat split marioparty.yaml
-python3 tools/configure.py
+# Current mariopartyrd/marioparty build flow: setup performs the clean
+# split/configure stage, then make produces the matching ROM + ELF.
+make setup
 make -j"$(nproc)"
 test -f build/marioparty.elf
 cd "$ROOT"
