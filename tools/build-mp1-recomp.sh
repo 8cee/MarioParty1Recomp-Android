@@ -26,6 +26,36 @@ python -m pip install -r requirements.txt pyelftools
 make setup
 make -j"$(nproc)"
 test -f build/marioparty.elf
+
+# Mario Party loads all gameplay/board/minigame overlays at the same VRAM base.
+# N64Recomp needs those ELF output sections explicitly marked relocatable.
+# Derive the list from the freshly built ELF so it always matches the pinned
+# decomp instead of keeping a fragile hand-maintained section list.
+python - "$ROOT/recomp/mp1.us.overlays.txt" <<'PY'
+from pathlib import Path
+import sys
+from elftools.elf.elffile import ELFFile
+
+elf_path = Path("build/marioparty.elf")
+out_path = Path(sys.argv[1])
+overlay_vram = 0x800F65E0
+
+with elf_path.open("rb") as f:
+    elf = ELFFile(f)
+    names = [
+        sec.name for sec in elf.iter_sections()
+        if int(sec["sh_addr"]) == overlay_vram and int(sec["sh_size"]) > 0
+    ]
+
+if not names:
+    raise SystemExit(
+        f"No ELF sections found at Mario Party overlay VRAM 0x{overlay_vram:08X}"
+    )
+
+out_path.write_text("\n".join(names) + "\n")
+print(f"Derived {len(names)} relocatable MP1 ELF sections -> {out_path}")
+PY
+
 cd "$ROOT"
 if [[ ! -d .mp1-build/N64Recomp/.git ]]; then
     git clone --recurse-submodules https://github.com/N64Recomp/N64Recomp.git .mp1-build/N64Recomp
