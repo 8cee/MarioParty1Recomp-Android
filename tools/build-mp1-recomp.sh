@@ -16,9 +16,11 @@ git -C "$ROOT/.mp1-build/marioparty" fetch origin "$DECOMP_REF"
 git -C "$ROOT/.mp1-build/marioparty" checkout --detach FETCH_HEAD
 cp "$ROM" "$ROOT/.mp1-build/marioparty/baserom.us.z64"
 cd "$ROOT/.mp1-build/marioparty"
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt pyelftools
+rm -rf venv
+python3 -m venv venv
+. venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt pyelftools
 # Current mariopartyrd/marioparty build flow: setup performs the clean
 # split/configure stage, then make produces the matching ROM + ELF.
 make setup
