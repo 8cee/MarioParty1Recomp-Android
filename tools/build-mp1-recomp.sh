@@ -29,6 +29,7 @@ cmake --build .mp1-build/N64Recomp/build -j"$(nproc)"
 rm -rf recomp/generated recomp/rsp
 mkdir -p recomp/generated recomp/rsp
 (cd recomp && ../.mp1-build/N64Recomp/build/N64Recomp mp1.us.toml)
+python3 recomp/patch-generated-process-runtime.py
 (cd recomp && ../.mp1-build/N64Recomp/build/RSPRecomp aspMain.toml)
 test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)"
 test -s recomp/rsp/aspMain.cpp
