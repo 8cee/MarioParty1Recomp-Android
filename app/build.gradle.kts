@@ -1,9 +1,9 @@
-val hostFileToC = providers.gradleProperty("HOST_FILE_TO_C").orNull
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val hostFileToC = providers.gradleProperty("HOST_FILE_TO_C").orNull
 
 android {
     namespace = "com.eightcee.marioparty1recomp"
