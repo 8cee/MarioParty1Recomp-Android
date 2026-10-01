@@ -35,7 +35,30 @@ if recompilation.exists():
         "use_lookup_for_all_function_calls",
     )
     if all(marker in text for marker in markers):
-        print("N64Recomp already supports ambiguous MP1 overlay JAL fallback")
+        # Mario Party's omMain performs a direct JAL to 0x800F65E0, the
+        # shared load address used by its relocatable overlays. At static
+        # analysis time there is intentionally no single function that owns
+        # that address. Treat this one dynamic overlay entry exactly like the
+        # modern ambiguous-overlay path and resolve it through the runtime
+        # function lookup table.
+        needle = '''                    case JalResolutionResult::NoMatch:
+                        fmt::print(stderr, "No function found for jal target: 0x{:08X}\\n", target_func_vram);
+                        return false;'''
+        replacement = '''                    case JalResolutionResult::NoMatch:
+                        if (target_func_vram == 0x800F65E0) {
+                            fmt::print(stderr, "[Info] MP1 dynamic overlay jal target 0x{:08X} in function {}, falling back to function lookup\\n", target_func_vram, func.name);
+                            call_by_lookup = true;
+                            break;
+                        }
+                        fmt::print(stderr, "No function found for jal target: 0x{:08X}\\n", target_func_vram);
+                        return false;'''
+        if needle not in text:
+            raise SystemExit(
+                "Unsupported N64Recomp revision: modern NoMatch JAL block changed"
+            )
+        text = text.replace(needle, replacement, 1)
+        recompilation.write_text(text)
+        print("Applied MP1 dynamic overlay entry JAL fallback")
         raise SystemExit(0)
 
 raise SystemExit(
