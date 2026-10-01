@@ -15,7 +15,7 @@ cp "$ROM" "$ROOT/.mp1-build/marioparty/baserom.us.z64"
 cd "$ROOT/.mp1-build/marioparty"
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt pyelftools
 python3 -m splat split marioparty.yaml
 python3 tools/configure.py
 make -j"$(nproc)"
@@ -30,6 +30,7 @@ rm -rf recomp/generated recomp/rsp
 mkdir -p recomp/generated recomp/rsp
 (cd recomp && ../.mp1-build/N64Recomp/build/N64Recomp mp1.us.toml)
 python3 recomp/patch-generated-process-runtime.py
+python3 recomp/derive-mp1-rsp-config.py
 (cd recomp && ../.mp1-build/N64Recomp/build/RSPRecomp aspMain.toml)
 test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)"
 test -s recomp/rsp/aspMain.cpp
