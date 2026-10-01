@@ -9,22 +9,48 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 ELF = ROOT / ".mp1-build/marioparty/build/marioparty.elf"
+MAP = ROOT / ".mp1-build/marioparty/build/marioparty.map"
 ROM = ROOT / ".mp1-build/marioparty/baserom.us.z64"
 OUT = ROOT / "recomp/aspMain.toml"
 
 if not ELF.is_file() or not ROM.is_file():
     raise SystemExit("MP1 ELF/ROM missing; build the verified decomp first")
 
+def map_symbols_from_linker_map(names):
+    if not MAP.is_file():
+        return {}
+    import re
+    wanted = set(names)
+    found = {}
+    # GNU ld map files commonly emit either:
+    #   0x00000000800B1830                aspMainTextStart
+    # or the symbol name before an assignment. Accept both forms.
+    for line in MAP.read_text(errors="replace").splitlines():
+        for name in tuple(wanted - found.keys()):
+            if name not in line:
+                continue
+            m = re.search(r"0x([0-9A-Fa-f]{8,16})", line)
+            if m:
+                found[name] = int(m.group(1), 16)
+    return found
+
 def symbol_bytes(elf, start_name, end_name):
-    symtab = elf.get_section_by_name(".symtab")
-    if symtab is None:
-        raise RuntimeError("ELF has no symbol table")
     syms = {}
-    for sym in symtab.iter_symbols():
-        if sym.name in (start_name, end_name):
-            syms[sym.name] = int(sym["st_value"])
+    symtab = elf.get_section_by_name(".symtab")
+    if symtab is not None:
+        for sym in symtab.iter_symbols():
+            if sym.name in (start_name, end_name):
+                syms[sym.name] = int(sym["st_value"])
+
     if start_name not in syms or end_name not in syms:
-        raise RuntimeError(f"Missing ELF symbols {start_name}/{end_name}")
+        fallback = map_symbols_from_linker_map((start_name, end_name))
+        syms.update(fallback)
+
+    if start_name not in syms or end_name not in syms:
+        raise RuntimeError(
+            f"Missing {start_name}/{end_name} in ELF and linker map {MAP}"
+        )
+
     start, end = syms[start_name], syms[end_name]
     if end <= start:
         raise RuntimeError(f"Invalid symbol range {start_name}/{end_name}")
