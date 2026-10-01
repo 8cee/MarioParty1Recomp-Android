@@ -50,6 +50,13 @@ list(APPEND CMAKE_MODULE_PATH "${ANDROID_PORT_DIR}/cmake/Modules")
 
 set(RT64_STATIC TRUE)
 set(RT64_SDL_WINDOW_VULKAN TRUE)
+# Match the working DK64/Banjo Android ports: only the static Zstd runtime is
+# needed on-device. Its CLI/tests are host programs and can break cross-builds.
+set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(ZSTD_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(PLUME_SDL_VULKAN_ENABLED TRUE)
 add_compile_definitions(
     HLSL_CPU
