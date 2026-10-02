@@ -23,6 +23,9 @@
 
 extern "C" void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);
 gpr get_entrypoint_address();
+
+std::vector<recomp::GameEntry> supported_games;
+SDL_Window* window = nullptr;
 RspUcodeFunc* mp1_get_rsp_microcode(const OSTask* task);
 extern "C" void mp1_android_pad_state(unsigned short* buttons, float* x, float* y);
 extern "C" void mp1_diag_set_directory(const char* directory);
@@ -34,7 +37,6 @@ constexpr std::uint64_t kMarioPartyUsXxh3 = 0x19f905a0cbc9fe8fULL;
 constexpr char kTag[] = "MP1Recomp";
 constexpr int kOutputRate = 48000;
 
-SDL_Window* g_window = nullptr;
 SDL_AudioDeviceID g_audio_device = 0;
 SDL_AudioStream* g_audio_stream = nullptr;
 int g_source_rate = kOutputRate;
@@ -45,8 +47,8 @@ void log_error(const char* message) {
 
 void message_box(const char* message) {
     __android_log_print(ANDROID_LOG_ERROR, kTag, "%s", message);
-    if (g_window != nullptr) {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Mario Party 1 Recomp", message, g_window);
+    if (window != nullptr) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Mario Party 1 Recomp", message, window);
     }
 }
 
@@ -149,7 +151,7 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
 
 ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
     const uint32_t flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP;
-    g_window = SDL_CreateWindow(
+    window = SDL_CreateWindow(
         "Mario Party 1 Recomp",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
@@ -157,10 +159,10 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
         720,
         flags
     );
-    if (g_window == nullptr) {
+    if (window == nullptr) {
         __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_CreateWindow failed: %s", SDL_GetError());
     }
-    return g_window;
+    return window;
 }
 
 void update_gfx(void*) {
@@ -241,6 +243,8 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(config_path, ec);
     recomp::register_config_path(config_path);
     recomp::register_game(mario_party_us);
+    supported_games.clear();
+    supported_games.push_back(mario_party_us);
 
     recompinput::profiles::initialize_input_bindings();
     recompinput::players::set_single_player_mode(true);
