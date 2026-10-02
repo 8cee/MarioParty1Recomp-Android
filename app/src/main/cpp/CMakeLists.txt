@@ -191,6 +191,8 @@ add_library(main SHARED
     mp1_main.cpp
     "${MP1_ROOT}/recomp/runtime/mp1_rsp_runtime.cpp"
     "${MP1_ROOT}/recomp/runtime/mp1_process_runtime.cpp"
+    "${MP1_ROOT}/recomp/runtime/mp1_libultra_shims.cpp"
+    "${MP1_ROOT}/recomp/generated/lookup.cpp"
     "${MP1_ROOT}/recomp/rsp/aspMain.cpp"
 )
 
