@@ -27,6 +27,7 @@ gpr get_entrypoint_address();
 std::vector<recomp::GameEntry> supported_games;
 SDL_Window* window = nullptr;
 RspUcodeFunc* mp1_get_rsp_microcode(const OSTask* task);
+void mp1_register_overlays();
 extern "C" void mp1_android_pad_state(unsigned short* buttons, float* x, float* y);
 extern "C" void mp1_diag_set_directory(const char* directory);
 extern "C" void mp1_diag(const char* stage, const char* detail);
@@ -243,6 +244,7 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(config_path, ec);
     recomp::register_config_path(config_path);
     recomp::register_game(mario_party_us);
+    mp1_register_overlays();
     supported_games.clear();
     supported_games.push_back(mario_party_us);
 
