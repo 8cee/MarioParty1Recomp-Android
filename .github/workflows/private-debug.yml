@@ -40,9 +40,9 @@ jobs:
       - name: Fetch private ROM chunks
         shell: bash
         run: |
-          mkdir -p .private-inputs
+          mkdir -p .private-inputs/mp1
           curl -fL "$ROM_ARTIFACT_URL" -o /tmp/mp1-rom-chunks.zip
-          unzip -q /tmp/mp1-rom-chunks.zip -d .private-inputs
+          unzip -q /tmp/mp1-rom-chunks.zip -d .private-inputs/mp1
           test -f .private-inputs/mp1/marioparty.z64.part00
           test -f .private-inputs/mp1/marioparty.z64.part01
 
