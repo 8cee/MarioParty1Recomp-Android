@@ -1,5 +1,6 @@
 #include <android/log.h>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -39,8 +40,14 @@ constexpr char kTag[] = "MP1Recomp";
 constexpr int kOutputRate = 48000;
 
 SDL_AudioDeviceID g_audio_device = 0;
-SDL_AudioStream* g_audio_stream = nullptr;
-int g_source_rate = kOutputRate;
+SDL_AudioCVT g_audio_convert{};
+uint32_t g_source_rate = kOutputRate;
+uint32_t g_output_rate = kOutputRate;
+constexpr uint32_t kInputChannels = 2;
+uint32_t g_output_channels = 2;
+constexpr uint32_t kDuplicatedInputFrames = 4;
+uint32_t g_discarded_output_frames = 0;
+constexpr uint32_t kBytesPerFrame = kInputChannels * sizeof(float);
 
 void log_error(const char* message) {
     __android_log_print(ANDROID_LOG_ERROR, kTag, "%s", message);
@@ -53,19 +60,23 @@ void message_box(const char* message) {
     }
 }
 
-bool rebuild_audio_stream() {
-    if (g_audio_stream != nullptr) {
-        SDL_FreeAudioStream(g_audio_stream);
-        g_audio_stream = nullptr;
-    }
-    g_audio_stream = SDL_NewAudioStream(
-        AUDIO_S16SYS, 2, g_source_rate,
-        AUDIO_S16SYS, 2, kOutputRate
+bool update_audio_converter() {
+    const int ret = SDL_BuildAudioCVT(
+        &g_audio_convert,
+        AUDIO_F32,
+        static_cast<Uint8>(kInputChannels),
+        static_cast<int>(g_source_rate),
+        AUDIO_F32,
+        static_cast<Uint8>(g_output_channels),
+        static_cast<int>(g_output_rate)
     );
-    if (g_audio_stream == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_NewAudioStream failed: %s", SDL_GetError());
+    if (ret < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_BuildAudioCVT failed: %s", SDL_GetError());
         return false;
     }
+
+    g_discarded_output_frames =
+        kDuplicatedInputFrames * g_output_rate / g_source_rate;
     return true;
 }
 
@@ -76,10 +87,10 @@ bool init_audio() {
     }
 
     SDL_AudioSpec desired{};
-    desired.freq = kOutputRate;
-    desired.format = AUDIO_S16SYS;
-    desired.channels = 2;
-    desired.samples = 0x200;
+    desired.freq = static_cast<int>(g_output_rate);
+    desired.format = AUDIO_F32;
+    desired.channels = static_cast<Uint8>(g_output_channels);
+    desired.samples = 0x100;
 
     g_audio_device = SDL_OpenAudioDevice(nullptr, 0, &desired, nullptr, 0);
     if (g_audio_device == 0) {
@@ -87,7 +98,9 @@ bool init_audio() {
         return false;
     }
 
-    if (!rebuild_audio_stream()) {
+    if (!update_audio_converter()) {
+        SDL_CloseAudioDevice(g_audio_device);
+        g_audio_device = 0;
         return false;
     }
 
@@ -96,48 +109,110 @@ bool init_audio() {
 }
 
 void queue_samples(int16_t* audio_data, size_t sample_count) {
-    if (g_audio_device == 0 || g_audio_stream == nullptr || audio_data == nullptr || sample_count == 0) {
+    if (g_audio_device == 0 || audio_data == nullptr || sample_count == 0) {
         return;
     }
 
-    const int byte_count = static_cast<int>(sample_count * sizeof(int16_t));
-    if (SDL_AudioStreamPut(g_audio_stream, audio_data, byte_count) != 0) {
+    static std::vector<float> swap_buffer;
+    static std::array<float, kDuplicatedInputFrames * kInputChannels> duplicated_samples{};
+
+    const size_t resampled_sample_count =
+        sample_count + kDuplicatedInputFrames * kInputChannels;
+    const size_t max_sample_count =
+        std::max(resampled_sample_count,
+                 resampled_sample_count * static_cast<size_t>(std::max(1, g_audio_convert.len_mult)));
+    if (swap_buffer.size() < max_sample_count) {
+        swap_buffer.resize(max_sample_count);
+    }
+
+    for (size_t i = 0; i < duplicated_samples.size(); ++i) {
+        swap_buffer[i] = duplicated_samples[i];
+    }
+
+    // N64 audio arrives with the channel order affected by the runtime's
+    // endian-address translation. Match the proven DK64/BM64/Banjo path.
+    for (size_t i = 0; i + 1 < sample_count; i += kInputChannels) {
+        swap_buffer[i + 0 + duplicated_samples.size()] =
+            audio_data[i + 1] * (1.0f / 32768.0f);
+        swap_buffer[i + 1 + duplicated_samples.size()] =
+            audio_data[i + 0] * (1.0f / 32768.0f);
+    }
+
+    if (sample_count >= duplicated_samples.size()) {
+        for (size_t i = 0; i < duplicated_samples.size(); ++i) {
+            duplicated_samples[i] = swap_buffer[i + sample_count];
+        }
+    }
+
+    g_audio_convert.buf = reinterpret_cast<Uint8*>(swap_buffer.data());
+    g_audio_convert.len = static_cast<int>(
+        (sample_count + duplicated_samples.size()) * sizeof(float)
+    );
+
+    if (SDL_ConvertAudio(&g_audio_convert) < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_ConvertAudio failed: %s", SDL_GetError());
         return;
     }
 
-    int available = SDL_AudioStreamAvailable(g_audio_stream);
-    if (available <= 0) {
-        return;
+    const uint64_t queued_us =
+        (static_cast<uint64_t>(SDL_GetQueuedAudioSize(g_audio_device)) /
+         (g_output_channels * sizeof(float))) *
+        1000000ULL / std::max<uint32_t>(1, g_output_rate);
+
+    uint32_t bytes_to_queue = static_cast<uint32_t>(g_audio_convert.len_cvt);
+    const uint32_t trim_bytes =
+        g_output_channels * g_discarded_output_frames * sizeof(float);
+    if (bytes_to_queue > trim_bytes) {
+        bytes_to_queue -= trim_bytes;
     }
 
-    static std::vector<uint8_t> converted;
-    converted.resize(static_cast<size_t>(available));
-    const int received = SDL_AudioStreamGet(g_audio_stream, converted.data(), available);
-    if (received > 0) {
-        SDL_QueueAudio(g_audio_device, converted.data(), static_cast<Uint32>(received));
+    float* samples_to_queue =
+        swap_buffer.data() + (g_output_channels * g_discarded_output_frames / 2);
+
+    // Keep queued latency bounded, matching the working recomp ports.
+    const uint32_t skip_factor = static_cast<uint32_t>(queued_us / 100000ULL);
+    if (skip_factor != 0 && skip_factor < 8) {
+        const uint32_t skip_ratio = 1u << skip_factor;
+        bytes_to_queue /= skip_ratio;
+        const size_t frames =
+            bytes_to_queue / (g_output_channels * sizeof(float));
+        for (size_t i = 0; i < frames; ++i) {
+            samples_to_queue[2 * i + 0] = samples_to_queue[2 * skip_ratio * i + 0];
+            samples_to_queue[2 * i + 1] = samples_to_queue[2 * skip_ratio * i + 1];
+        }
     }
+
+    SDL_QueueAudio(g_audio_device, samples_to_queue, bytes_to_queue);
 }
 
 size_t get_frames_remaining() {
     if (g_audio_device == 0) {
         return 0;
     }
-    size_t bytes = SDL_GetQueuedAudioSize(g_audio_device);
-    if (g_audio_stream != nullptr) {
-        const int pending = SDL_AudioStreamAvailable(g_audio_stream);
-        if (pending > 0) {
-            bytes += static_cast<size_t>(pending);
-        }
+
+    uint64_t buffered_bytes = SDL_GetQueuedAudioSize(g_audio_device);
+    buffered_bytes =
+        buffered_bytes * kInputChannels * g_source_rate /
+        std::max<uint32_t>(1, g_output_rate) /
+        std::max<uint32_t>(1, g_output_channels);
+
+    const uint32_t frames_per_vi = g_source_rate / 60;
+    const uint64_t one_vi_bytes = kBytesPerFrame * frames_per_vi;
+    if (buffered_bytes > one_vi_bytes) {
+        buffered_bytes -= one_vi_bytes;
+    } else {
+        buffered_bytes = 0;
     }
-    return bytes / (2 * sizeof(int16_t));
+
+    return static_cast<size_t>(buffered_bytes / kBytesPerFrame);
 }
 
 void set_frequency(uint32_t frequency) {
-    if (frequency == 0 || static_cast<int>(frequency) == g_source_rate) {
+    if (frequency == 0 || frequency == g_source_rate) {
         return;
     }
-    g_source_rate = static_cast<int>(frequency);
-    rebuild_audio_stream();
+    g_source_rate = frequency;
+    update_audio_converter();
 }
 
 ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
@@ -322,10 +397,6 @@ int main(int argc, char** argv) {
     recomp::start(cfg);
     mp1_diag("runtime", "runtime returned to Android main");
 
-    if (g_audio_stream != nullptr) {
-        SDL_FreeAudioStream(g_audio_stream);
-        g_audio_stream = nullptr;
-    }
     if (g_audio_device != 0) {
         SDL_CloseAudioDevice(g_audio_device);
         g_audio_device = 0;
