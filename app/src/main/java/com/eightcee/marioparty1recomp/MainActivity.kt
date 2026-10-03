@@ -34,10 +34,7 @@ class MainActivity : SDLActivity() {
 
         super.onCreate(savedInstanceState)
 
-        @Suppress("DEPRECATION")
-        run {
-            window.decorView.systemUiVisibility = 5894
-        }
+        applyImmersiveMode()
 
         if (mLayout != null && virtualPadView == null) {
             virtualPadView = VirtualPadView(this)
@@ -69,7 +66,40 @@ class MainActivity : SDLActivity() {
         return super.dispatchGenericMotionEvent(e)
     }
 
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveMode()
+        RuntimeBridge.writeDiagnostic("MainActivity resumed")
+    }
+
+    override fun onPause() {
+        RuntimeBridge.setVirtualPad(0, 0f, 0f)
+        RuntimeBridge.writeDiagnostic("MainActivity paused; virtual pad released")
+        super.onPause()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyImmersiveMode()
+        } else {
+            RuntimeBridge.setVirtualPad(0, 0f, 0f)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyImmersiveMode() {
+        window.decorView.systemUiVisibility =
+            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+    }
+
     override fun onDestroy() {
+        RuntimeBridge.setVirtualPad(0, 0f, 0f)
         virtualPadView = null
         super.onDestroy()
     }
