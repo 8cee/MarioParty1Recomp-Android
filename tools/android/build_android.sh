@@ -28,10 +28,17 @@ if [[ ! -x "$HOST_FILE_TO_C" || "$FILE_TO_C_SRC" -nt "$HOST_FILE_TO_C" ]]; then
   "${CXX:-c++}" -std=c++17 -O2 "$FILE_TO_C_SRC" -o "$HOST_FILE_TO_C"
 fi
 
-echo "[android] assembling Mario Party native arm64 debug APK"
-gradle --no-daemon -PHOST_FILE_TO_C="$HOST_FILE_TO_C" :app:assembleDebug
+BUILD_VARIANT="${MP1_ANDROID_VARIANT:-release}"
+if [[ "$BUILD_VARIANT" == "debug" ]]; then
+  GRADLE_TASK=":app:assembleDebug"
+  APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+else
+  GRADLE_TASK=":app:assembleRelease"
+  APK="$ROOT/app/build/outputs/apk/release/app-release.apk"
+fi
 
-APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+echo "[android] assembling Mario Party native arm64 $BUILD_VARIANT APK"
+gradle --no-daemon -PHOST_FILE_TO_C="$HOST_FILE_TO_C" "$GRADLE_TASK"
 test -f "$APK"
 unzip -l "$APK" > "$ROOT/.mp1-build/apk-contents.txt"
 grep -q 'lib/arm64-v8a/libmain.so' "$ROOT/.mp1-build/apk-contents.txt"
