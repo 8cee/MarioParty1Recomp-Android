@@ -27,9 +27,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    env:
-      ROM_ARTIFACT_URL: "https://sdmntprdenmarkeast.oaiusercontent.com/files/00000000-8574-8210-b664-be69cfcb00ba/raw?se=2026-10-02T22%3A39%3A27Z&sp=r&sv=2026-02-06&sr=b&scid=1524b516-6ec4-5abb-abba-a124201edf75&skoid=002823aa-689d-47ca-9347-108c20f4f00d&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T19%3A57%3A50Z&ske=2026-10-03T19%3A57%3A50Z&sks=b&skv=2026-02-06&sig=HrHu4XqpDAGmoXwoGieOMGkbueu50vSSdqow6%2B4GLYA%3D"
-
     steps:
       - name: Checkout private MP1 source
         uses: actions/checkout@v4
@@ -37,14 +34,22 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Fetch private ROM chunks
+      - name: Restore verified generated MP1 sources
+        uses: actions/download-artifact@v4
+        with:
+          name: MarioParty1Recomp-generated-sources
+          repository: 8cee/MarioParty1Recomp-Android
+          run-id: 37073499032
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .generated-cache
+
+      - name: Install generated MP1 sources
         shell: bash
         run: |
-          mkdir -p .private-inputs/mp1
-          curl -fL "$ROM_ARTIFACT_URL" -o /tmp/mp1-rom-chunks.zip
-          unzip -q /tmp/mp1-rom-chunks.zip -d .private-inputs/mp1
-          test -f .private-inputs/mp1/marioparty.z64.part00
-          test -f .private-inputs/mp1/marioparty.z64.part01
+          test -s .generated-cache/MarioParty1Recomp-generated-sources.tar.gz
+          tar -xzf .generated-cache/MarioParty1Recomp-generated-sources.tar.gz
+          test -n "$(find recomp/generated -name 'funcs_*.c' -print -quit)"
+          test -s recomp/rsp/aspMain.cpp
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
