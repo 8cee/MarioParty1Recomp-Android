@@ -1,4 +1,4 @@
-name: Private Mario Party Android debug
+name: Mario Party Android release
 
 on:
   workflow_dispatch:
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build private Mario Party APK
+      - name: Build Mario Party release APK
         shell: bash
         run: bash tools/ci/build-private-self.sh
 
@@ -74,11 +74,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Upload debug APK
+      - name: Upload release APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MarioParty1Recomp-private-debug
-          path: MarioParty1Recomp-private-debug.apk
+          name: MarioParty1Recomp-release
+          path: MarioParty1Recomp-release.apk
           if-no-files-found: warn
           retention-days: 30
