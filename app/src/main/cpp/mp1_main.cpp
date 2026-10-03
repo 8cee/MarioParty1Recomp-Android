@@ -395,6 +395,8 @@ int main(int argc, char** argv) {
     // owns frontend/runtime initialization and the transition into the selected
     // game. Starting guest execution before this point can race renderer/window
     // initialization on Android.
+    mp1_diag("runtime", "selecting imported Mario Party ROM");
+    recomp::start_game(game_id, {});
     mp1_diag("runtime", "entering recomp runtime");
     __android_log_print(ANDROID_LOG_INFO, kTag, "Entering Mario Party recomp runtime");
     recomp::start(cfg);
