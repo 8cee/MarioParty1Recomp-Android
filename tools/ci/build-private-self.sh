@@ -10,31 +10,35 @@ EXPECTED_SHA1="1159bd56730094bfc71be30113e1cfc8bacf34f3"
 echo "==> Preparing private Mario Party 1 Android build"
 echo "Building directly from the checked-out private MP1 source repository."
 echo "MP1 private pipeline revision: self-hosted-private-source"
-ROM_INPUT="$(find "$PRIVATE/mp1" -maxdepth 1 -type f \( -iname '*.n64' -o -iname '*.z64' -o -iname '*.v64' \) | head -1 || true)"
-
-# GitHub's browser uploader limits individual files to 25 MB. Allow the
-# 32 MB ROM to be stored as raw chunks named:
-#   marioparty.z64.part00
-#   marioparty.z64.part01
-# (additional sequential parts are accepted too).
-if [ -z "$ROM_INPUT" ] && compgen -G "$PRIVATE/mp1/marioparty.z64.part*" > /dev/null; then
-  mkdir -p "$ROOT/reconstructed-rom"
-  ROM_INPUT="$ROOT/reconstructed-rom/marioparty.us.z64"
-  cat "$PRIVATE"/mp1/marioparty.z64.part* > "$ROM_INPUT"
-  echo "Reconstructed private ROM from split parts"
+HAVE_GENERATED=0
+if [ -n "$(find "$ROOT/recomp/generated" -maxdepth 1 -type f -name 'funcs_*.c' -print -quit 2>/dev/null)" ] && [ -s "$ROOT/recomp/rsp/aspMain.cpp" ]; then
+  HAVE_GENERATED=1
+  echo "Using restored verified MP1 generated sources"
 fi
 
-if [ -z "$ROM_INPUT" ] || [ ! -f "$ROM_INPUT" ]; then
-  echo "::error::No private Mario Party ROM or marioparty.z64.part* chunks found under private-inputs/mp1"
-  exit 1
-fi
-echo "Private ROM input: $(basename "$ROM_INPUT")"
+ROM_INPUT=""
+if [ "$HAVE_GENERATED" -eq 0 ]; then
+  ROM_INPUT="$(find "$PRIVATE/mp1" -maxdepth 1 -type f \( -iname '*.n64' -o -iname '*.z64' -o -iname '*.v64' \) | head -1 || true)"
 
-ACTUAL_SHA1="$(sha1sum "$ROM_INPUT" | awk '{print $1}')"
-if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
-  echo "::error::Unsupported Mario Party ROM SHA1: $ACTUAL_SHA1"
-  echo "::error::Expected: $EXPECTED_SHA1"
-  exit 2
+  if [ -z "$ROM_INPUT" ] && compgen -G "$PRIVATE/mp1/marioparty.z64.part*" > /dev/null; then
+    mkdir -p "$ROOT/reconstructed-rom"
+    ROM_INPUT="$ROOT/reconstructed-rom/marioparty.us.z64"
+    cat "$PRIVATE"/mp1/marioparty.z64.part* > "$ROM_INPUT"
+    echo "Reconstructed private ROM from split parts"
+  fi
+
+  if [ -z "$ROM_INPUT" ] || [ ! -f "$ROM_INPUT" ]; then
+    echo "::error::No generated MP1 sources and no private Mario Party ROM input found"
+    exit 1
+  fi
+
+  echo "Private ROM input: $(basename "$ROM_INPUT")"
+  ACTUAL_SHA1="$(sha1sum "$ROM_INPUT" | awk '{print $1}')"
+  if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+    echo "::error::Unsupported Mario Party ROM SHA1: $ACTUAL_SHA1"
+    echo "::error::Expected: $EXPECTED_SHA1"
+    exit 2
+  fi
 fi
 
 cd "$SRC"
@@ -59,8 +63,12 @@ export ANDROID_SDK_ROOT="$SDK_ROOT"
 yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
 "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
-echo "==> Building Mario Party decomp and generated CPU code"
-bash tools/build-mp1-recomp.sh "$ROM_INPUT"
+if [ "$HAVE_GENERATED" -eq 0 ]; then
+  echo "==> Building Mario Party decomp and generated CPU code"
+  bash tools/build-mp1-recomp.sh "$ROM_INPUT"
+else
+  echo "==> Skipping ROM codegen; restored generated CPU/RSP code is present"
+fi
 test -f recomp/generated/funcs.h
 test "$(find recomp/generated -maxdepth 1 -type f -name 'funcs_*.c' | wc -l)" -gt 0
 test -f recomp/rsp/aspMain.cpp
