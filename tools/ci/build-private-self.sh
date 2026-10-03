@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
 PRIVATE="$ROOT/.private-inputs"
 SRC="$ROOT"
-OUT="$ROOT/MarioParty1Recomp-private-debug.apk"
+OUT="$ROOT/MarioParty1Recomp-release.apk"
 EXPECTED_SHA1="1159bd56730094bfc71be30113e1cfc8bacf34f3"
 
 echo "==> Preparing private Mario Party 1 Android build"
@@ -248,13 +248,13 @@ zstd.write_text(text)
 print("Applied deterministic RT64/Plume/Zstd Android adjustments")
 PY
 
-echo "==> Building Android debug APK"
+echo "==> Building optimized Android release APK"
 # Use the project's canonical Android entrypoint. Besides Gradle/CMake this
 # stages SDLActivity.java and the rest of SDL's Android Java glue before the
 # Kotlin compiler runs.
 bash tools/android/build_android.sh
 
-APK="$SRC/app/build/outputs/apk/debug/app-debug.apk"
+APK="$SRC/app/build/outputs/apk/release/app-release.apk"
 test -f "$APK"
 
 echo "==> Verifying APK"
