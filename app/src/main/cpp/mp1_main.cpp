@@ -391,11 +391,14 @@ int main(int argc, char** argv) {
         },
     };
 
-    mp1_diag("runtime", "starting Mario Party native runtime");
-    __android_log_print(ANDROID_LOG_INFO, kTag, "Starting Mario Party native runtime");
-    recomp::start_game(game_id, {});
+    // Match the proven DK64/Banjo/BM64 startup contract: recomp::start()
+    // owns frontend/runtime initialization and the transition into the selected
+    // game. Starting guest execution before this point can race renderer/window
+    // initialization on Android.
+    mp1_diag("runtime", "entering recomp runtime");
+    __android_log_print(ANDROID_LOG_INFO, kTag, "Entering Mario Party recomp runtime");
     recomp::start(cfg);
-    mp1_diag("runtime", "runtime returned to Android main");
+    mp1_diag("runtime", "recomp runtime returned to Android main");
 
     if (g_audio_device != 0) {
         SDL_CloseAudioDevice(g_audio_device);
