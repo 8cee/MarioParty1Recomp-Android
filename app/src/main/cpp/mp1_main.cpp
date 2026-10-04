@@ -219,14 +219,20 @@ ultramodern::gfx_callbacks_t::gfx_data_t create_gfx() {
     SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 
+    mp1_diag("gfx", "SDL_Init begin");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_AUDIO) != 0) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_Init failed: %s", SDL_GetError());
+        const char* error = SDL_GetError();
+        mp1_diag_error("gfx", error != nullptr ? error : "SDL_Init failed");
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_Init failed: %s", error != nullptr ? error : "unknown");
+        return nullptr;
     }
+    mp1_diag("gfx", "SDL_Init succeeded");
     return nullptr;
 }
 
 ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
     const uint32_t flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP;
+    mp1_diag("gfx", "SDL_CreateWindow begin");
     window = SDL_CreateWindow(
         "Mario Party 1 Recomp",
         SDL_WINDOWPOS_CENTERED,
@@ -236,8 +242,12 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
         flags
     );
     if (window == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_CreateWindow failed: %s", SDL_GetError());
+        const char* error = SDL_GetError();
+        mp1_diag_error("gfx", error != nullptr ? error : "SDL_CreateWindow failed");
+        __android_log_print(ANDROID_LOG_ERROR, kTag, "SDL_CreateWindow failed: %s", error != nullptr ? error : "unknown");
+        return {};
     }
+    mp1_diag("gfx", "SDL_CreateWindow succeeded");
     return window;
 }
 
@@ -250,12 +260,23 @@ std::unique_ptr<ultramodern::renderer::RendererContext> create_render_context(
     ultramodern::renderer::WindowHandle window_handle,
     bool developer_mode
 ) {
-    return recompui::renderer::create_render_context(
+    mp1_diag("renderer", "RT64 render context creation begin");
+    if (window_handle == ultramodern::renderer::WindowHandle{}) {
+        mp1_diag_error("renderer", "refusing RT64 initialization with an invalid window handle");
+        return nullptr;
+    }
+    auto context = recompui::renderer::create_render_context(
         rdram,
         window_handle,
         ultramodern::renderer::PresentationMode::PresentEarly,
         developer_mode
     );
+    if (context == nullptr) {
+        mp1_diag_error("renderer", "RT64 render context creation returned null");
+    } else {
+        mp1_diag("renderer", "RT64 render context creation succeeded");
+    }
+    return context;
 }
 
 void poll_input() {
