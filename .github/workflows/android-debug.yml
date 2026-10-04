@@ -1,8 +1,9 @@
 name: Android Debug APK
 on:
+  # Public checkout intentionally omits generated MP1 sources. Run this only
+  # manually when those sources have been supplied; normal release validation
+  # is handled by private-debug.yml, which restores the verified source cache.
   workflow_dispatch:
-  push:
-    branches: [ main ]
 concurrency:
   group: mp1-android-debug
   cancel-in-progress: true
