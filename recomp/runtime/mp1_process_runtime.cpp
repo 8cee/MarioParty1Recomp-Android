@@ -2,6 +2,7 @@
 #include <pthread.h>
 
 #include <condition_variable>
+#include <cstdio>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -9,6 +10,9 @@
 #include <unordered_map>
 
 #include "recomp.h"
+
+extern "C" void mp1_diag(const char* stage, const char* detail);
+extern "C" void mp1_diag_error(const char* stage, const char* detail);
 
 namespace {
 constexpr char kTag[] = "MP1Process";
@@ -75,6 +79,7 @@ struct ProcessHost {
 std::mutex g_hosts_mutex;
 std::unordered_map<uint32_t, std::unique_ptr<ProcessHost>> g_hosts;
 thread_local ProcessHost* g_current_host = nullptr;
+bool g_scheduler_logged = false;
 
 [[noreturn]] void terminate_host(ProcessHost* host) {
     {
@@ -91,6 +96,9 @@ thread_local ProcessHost* g_current_host = nullptr;
 void call_guest(ProcessHost* host, uint32_t vram) {
     recomp_func_t* fn = get_function(static_cast<int32_t>(vram));
     if (fn == nullptr) {
+        char detail[96];
+        std::snprintf(detail, sizeof(detail), "missing guest function at %08x process=%08x", vram, host->process);
+        mp1_diag_error("process", detail);
         __android_log_print(ANDROID_LOG_ERROR, kTag, "Missing guest function at %08x", vram);
         terminate_host(host);
     }
@@ -142,6 +150,13 @@ void process_thread_main(ProcessHost* host) {
         }
     }
 
+    char detail[128];
+    std::snprintf(
+        detail, sizeof(detail),
+        "process start process=%08x entry=%08x sp=%08x",
+        host->process, entry, stack
+    );
+    mp1_diag("process", detail);
     __android_log_print(
         ANDROID_LOG_DEBUG, kTag,
         "Starting process %08x entry=%08x sp=%08x",
@@ -248,6 +263,16 @@ extern "C" void HuPrcCall(uint8_t* rdram, recomp_context* ctx) {
     const int32_t tick = static_cast<int32_t>(ctx->r4);
 
     uint32_t process = read32(rdram, kProcessTop);
+    if (!g_scheduler_logged) {
+        char detail[128];
+        std::snprintf(
+            detail, sizeof(detail),
+            "first HuPrcCall tick=%d top=%08x count=%u",
+            tick, process, read32(rdram, kProcessCount)
+        );
+        mp1_diag("process", detail);
+        g_scheduler_logged = true;
+    }
     while (process != 0) {
         // Save next before running; HuPrcEnd/HuPrcTerminate may unlink current.
         const uint32_t next = read32(rdram, process + kNext);
