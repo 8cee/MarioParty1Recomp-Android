@@ -2,6 +2,7 @@
 #include <pthread.h>
 
 #include <condition_variable>
+#include <chrono>
 #include <cstdio>
 #include <cstdint>
 #include <memory>
@@ -73,6 +74,7 @@ struct ProcessHost {
     bool yielded = false;
     bool terminated = false;
     bool force_end = false;
+    bool stall_reported = false;
     uint32_t heap_to_free = 0;
 };
 
@@ -233,9 +235,25 @@ void run_slice(uint8_t* rdram, uint32_t process, bool force_end) {
         }
         host->yielded = false;
         host->cv.notify_all();
-        host->cv.wait(lock, [&] { return host->yielded || host->terminated; });
+        while (!host->yielded && !host->terminated) {
+            if (host->cv.wait_for(lock, std::chrono::seconds(5)) == std::cv_status::timeout &&
+                !host->yielded && !host->terminated && !host->stall_reported) {
+                char detail[128];
+                std::snprintf(
+                    detail, sizeof(detail),
+                    "process slice stalled >5s process=%08x entry=%08x mode=%u",
+                    process,
+                    read32(rdram, process + kJumpFunc),
+                    static_cast<unsigned>(read16(rdram, process + kExecMode))
+                );
+                mp1_diag_error("process", detail);
+                __android_log_print(ANDROID_LOG_ERROR, kTag, "%s", detail);
+                host->stall_reported = true;
+            }
+        }
 
         if (!host->terminated) {
+            host->stall_reported = false;
             return;
         }
     }
