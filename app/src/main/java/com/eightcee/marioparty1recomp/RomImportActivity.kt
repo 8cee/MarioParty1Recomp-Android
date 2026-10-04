@@ -21,10 +21,14 @@ class RomImportActivity : Activity() {
             return
         }
         status = TextView(this).apply { text = "Select your Mario Party (USA) ROM" }
-        val button = Button(this).apply { text = "SELECT ROM"; setOnClickListener {
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "application/octet-stream"; addCategory(Intent.CATEGORY_OPENABLE) }, requestRom)
-        }}
-        setContentView(LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48,48,48,48); addView(status); addView(button) })
+        val button = romPickerButton()
+        setContentView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48,48,48,48)
+            addView(status)
+            addView(button)
+            addView(diagnosticButton())
+        })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -32,8 +36,20 @@ class RomImportActivity : Activity() {
         if (requestCode != requestRom || resultCode != RESULT_OK || data?.data == null) return
         val dir = romFile.parentFile!!; dir.mkdirs()
         val tmp = File(dir, "marioparty.tmp")
-        contentResolver.openInputStream(data.data!!)!!.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-        if (!RomValidator.isSupported(tmp)) { tmp.delete(); status.text = "Unsupported ROM. Mario Party (USA) is required."; return }
+        try {
+            val input = contentResolver.openInputStream(data.data!!)
+                ?: throw java.io.IOException("Could not open selected ROM")
+            input.use { source -> tmp.outputStream().use { source.copyTo(it) } }
+            if (!RomValidator.isSupported(tmp)) {
+                tmp.delete()
+                status.text = "Unsupported ROM. Mario Party (USA) is required."
+                return
+            }
+        } catch (e: Exception) {
+            tmp.delete()
+            status.text = "ROM import failed: " + (e.message ?: e.javaClass.simpleName)
+            return
+        }
         if (romFile.exists()) romFile.delete()
         if (!tmp.renameTo(romFile)) { tmp.copyTo(romFile, overwrite=true); tmp.delete() }
         launch()
@@ -45,18 +61,31 @@ class RomImportActivity : Activity() {
             text = "PLAY"
             setOnClickListener { launch() }
         }
-        val diagnostics = Button(this).apply {
-            text = "SHARE DIAGNOSTICS"
-            isEnabled = diagnosticFile().isFile
-            setOnClickListener { shareDiagnostics() }
-        }
+        val diagnostics = diagnosticButton()
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 48, 48, 48)
             addView(status)
             addView(play)
+            addView(romPickerButton().apply { text = "CHANGE ROM" })
             addView(diagnostics)
         })
+    }
+
+    private fun romPickerButton() = Button(this).apply {
+        text = "SELECT ROM"
+        setOnClickListener {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = "*/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }, requestRom)
+        }
+    }
+
+    private fun diagnosticButton() = Button(this).apply {
+        text = "SHARE DIAGNOSTICS"
+        isEnabled = diagnosticFile().isFile
+        setOnClickListener { shareDiagnostics() }
     }
 
     private fun diagnosticFile() = File(filesDir, "mp1-diagnostic.log")
