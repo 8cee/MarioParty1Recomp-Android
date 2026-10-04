@@ -12,6 +12,7 @@
 #include "SDL_main.h"
 #endif
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_vulkan.h"
 
 #include "librecomp/game.hpp"
 #include "librecomp/rsp.hpp"
@@ -248,6 +249,24 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
         return {};
     }
     mp1_diag("gfx", "SDL_CreateWindow succeeded");
+    // Preflight the Vulkan loader and surface extension query before entering
+    // RT64, so an Android driver/SDL failure has a precise log entry.
+    mp1_diag("vulkan", "SDL_Vulkan_LoadLibrary begin");
+    if (SDL_Vulkan_LoadLibrary(nullptr) != 0) {
+        mp1_diag_error("vulkan", SDL_GetError());
+    } else {
+        mp1_diag("vulkan", "SDL_Vulkan_LoadLibrary succeeded");
+        unsigned int extension_count = 0;
+        if (!SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr)) {
+            mp1_diag_error("vulkan", SDL_GetError());
+        } else {
+            char detail[96];
+            std::snprintf(detail, sizeof(detail),
+                "surface instance extensions available: %u", extension_count);
+            mp1_diag("vulkan", detail);
+        }
+        SDL_Vulkan_UnloadLibrary();
+    }
     return window;
 }
 
