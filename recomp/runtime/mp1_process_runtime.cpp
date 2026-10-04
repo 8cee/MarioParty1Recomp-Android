@@ -281,6 +281,15 @@ extern "C" void HuPrcCall(uint8_t* rdram, recomp_context* ctx) {
     const int32_t tick = static_cast<int32_t>(ctx->r4);
 
     uint32_t process = read32(rdram, kProcessTop);
+    if (process == 0 && !g_scheduler_logged) {
+        char detail[96];
+        std::snprintf(
+            detail, sizeof(detail),
+            "first HuPrcCall has empty process list tick=%d count=%u",
+            tick, read32(rdram, kProcessCount)
+        );
+        mp1_diag_error("process", detail);
+    }
     if (!g_scheduler_logged) {
         char detail[128];
         std::snprintf(
