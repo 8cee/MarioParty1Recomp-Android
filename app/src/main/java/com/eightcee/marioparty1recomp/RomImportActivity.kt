@@ -21,14 +21,10 @@ class RomImportActivity : Activity() {
             return
         }
         status = TextView(this).apply { text = "Select your Mario Party (USA) ROM" }
-        val button = romPickerButton()
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48,48,48,48)
-            addView(status)
-            addView(button)
-            addView(diagnosticButton())
-        })
+        val button = Button(this).apply { text = "SELECT ROM"; setOnClickListener {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "application/octet-stream"; addCategory(Intent.CATEGORY_OPENABLE) }, requestRom)
+        }}
+        setContentView(LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48,48,48,48); addView(status); addView(button) })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -67,19 +63,8 @@ class RomImportActivity : Activity() {
             setPadding(48, 48, 48, 48)
             addView(status)
             addView(play)
-            addView(romPickerButton().apply { text = "CHANGE ROM" })
             addView(diagnostics)
         })
-    }
-
-    private fun romPickerButton() = Button(this).apply {
-        text = "SELECT ROM"
-        setOnClickListener {
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                type = "*/*"
-                addCategory(Intent.CATEGORY_OPENABLE)
-            }, requestRom)
-        }
     }
 
     private fun diagnosticButton() = Button(this).apply {
