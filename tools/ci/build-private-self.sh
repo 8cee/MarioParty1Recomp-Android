@@ -174,8 +174,19 @@ window_cpp = Path("lib/rt64/src/hle/rt64_application_window.cpp")
 window_text = window_cpp.read_text()
 old = '#   elif defined(__ANDROID__)\n        static_assert(false && "Android unimplemented");'
 new = '''#   elif defined(__ANDROID__)
-        bounds.left = 0;
-        bounds.top = 0;
+        if (SDL_VideoInit(nullptr) != 0) {
+            printf("Failed to init SDL2 video: %s\\n", SDL_GetError());
+            assert(false && "Failed to init SDL2 video");
+            return;
+        }
+        SDL_DisplayMode dm;
+        if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+            printf("Failed to get SDL2 desktop display mode: %s\\n", SDL_GetError());
+            assert(false && "Failed to get SDL2 desktop display mode");
+            return;
+        }
+        bounds.left = (dm.w - Width) / 2;
+        bounds.top = (dm.h - Height) / 2;
         bounds.width = Width;
         bounds.height = Height;'''
 if old not in window_text:
