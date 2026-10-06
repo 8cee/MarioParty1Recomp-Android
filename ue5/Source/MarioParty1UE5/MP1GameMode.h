@@ -47,6 +47,15 @@ public:
     UFUNCTION(BlueprintPure, Category="Mario Party")
     FString GetStatusText() const { return StatusText; }
 
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    bool IsInMinigame() const { return bInMinigame; }
+
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    float GetMinigameSecondsRemaining() const;
+
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    int32 GetWinnerIndex() const { return WinnerIndex; }
+
 private:
     UPROPERTY()
     TObjectPtr<AMP1BoardActor> Board;
@@ -77,6 +86,7 @@ private:
     int32 ForcedNextSpace = INDEX_NONE;
     TArray<int32> BranchOptions;
     FString StatusText;
+    int32 WinnerIndex = INDEX_NONE;
 
     void SpawnBoardAndPlayers();
     void SpawnEnvironment();
@@ -88,5 +98,6 @@ private:
     void StartBumperBalls();
     void UpdateBumperBalls();
     void FinishBumperBalls();
+    void FinishGame();
     void BindInput();
 };
