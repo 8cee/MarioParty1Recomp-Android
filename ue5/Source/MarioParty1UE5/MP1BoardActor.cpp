@@ -1,4 +1,5 @@
 #include "MP1BoardActor.h"
+#include "MP1RomBoardLoader.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -41,6 +42,23 @@ void AMP1BoardActor::OnConstruction(const FTransform& Transform)
     RebuildInstances();
 }
 
+
+
+bool AMP1BoardActor::LoadBoardFromRom(const FString& RomPath, int32 BoardFile)
+{
+    TArray<FMP1BoardSpaceData> Parsed;
+    FString Error;
+    if (!FMP1RomBoardLoader::LoadBoard(RomPath, BoardFile, Parsed, Error))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MP1 ROM board import failed: %s"), *Error);
+        return false;
+    }
+
+    Spaces = MoveTemp(Parsed);
+    RebuildInstances();
+    UE_LOG(LogTemp, Display, TEXT("Loaded %d original MP1 board spaces from %s"), Spaces.Num(), *RomPath);
+    return !Spaces.IsEmpty();
+}
 
 bool AMP1BoardActor::LoadBoardJson(const FString& JsonPath)
 {
