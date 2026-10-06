@@ -200,6 +200,15 @@ int32 AMP1BoardActor::GetNextSpace(int32 Index) const
     return Spaces[Index].Next[0];
 }
 
+TArray<int32> AMP1BoardActor::GetNextSpaces(int32 Index) const
+{
+    if (!Spaces.IsValidIndex(Index))
+    {
+        return {};
+    }
+    return Spaces[Index].Next;
+}
+
 FVector AMP1BoardActor::GetSpaceLocation(int32 Index) const
 {
     return Spaces.IsValidIndex(Index) ? Spaces[Index].Location : GetActorLocation();
