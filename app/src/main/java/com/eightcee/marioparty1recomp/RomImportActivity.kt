@@ -59,10 +59,14 @@ class RomImportActivity : Activity() {
                    else "Mario Party (USA) ROM ready — asset extraction required"
         }
         val play = Button(this).apply {
-            text = if (archiveReady) "PLAY" else "BUILD GAME ASSETS"
+            text = if (archiveReady) "PLAY" else "PLAY (RAW ROM)"
+            setOnClickListener { launch() }
+        }
+        val buildAssets = Button(this).apply {
+            text = "BUILD GAME ASSETS"
+            isEnabled = !archiveReady
             setOnClickListener {
-                if (AssetArchive.isReady(assetArchive)) launch()
-                else status.text = "MP1 O2R extractor is not installed in this build yet."
+                status.text = "MP1 O2R extractor is not installed in this build yet."
             }
         }
         val diagnostics = diagnosticButton()
@@ -71,6 +75,7 @@ class RomImportActivity : Activity() {
             setPadding(48, 48, 48, 48)
             addView(status)
             addView(play)
+            addView(buildAssets)
             addView(diagnostics)
         })
     }
