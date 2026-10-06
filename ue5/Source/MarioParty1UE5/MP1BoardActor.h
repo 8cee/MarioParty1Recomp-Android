@@ -24,6 +24,9 @@ public:
     UFUNCTION(BlueprintCallable)
     bool LoadBoardJson(const FString& JsonPath);
 
+    UFUNCTION(BlueprintCallable)
+    bool LoadBoardFromRom(const FString& RomPath, int32 BoardFile = 0x45);
+
     UFUNCTION(BlueprintPure)
     bool GetSpace(int32 Index, FMP1BoardSpaceData& OutSpace) const;
 
