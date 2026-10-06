@@ -7,7 +7,7 @@
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/StaticMeshActor.h"
-#include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectGlobals.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
@@ -34,10 +34,10 @@ void AMP1GameMode::SpawnEnvironment()
     AStaticMeshActor* Floor = GetWorld()->SpawnActor<AStaticMeshActor>();
     if (Floor && Floor->GetStaticMeshComponent())
     {
-        static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneMesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
-        if (PlaneMesh.Succeeded())
+        UStaticMesh* PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+        if (PlaneMesh)
         {
-            Floor->GetStaticMeshComponent()->SetStaticMesh(PlaneMesh.Object);
+            Floor->GetStaticMeshComponent()->SetStaticMesh(PlaneMesh);
             Floor->SetActorScale3D(FVector(50.0f, 50.0f, 1.0f));
             Floor->SetActorLocation(FVector(0, 0, -10.0f));
         }
@@ -94,12 +94,11 @@ void AMP1GameMode::BindInput()
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (!PC) return;
 
-    EnableInput(PC);
-    if (!InputComponent) return;
+    if (!PC->InputComponent) return;
 
-    InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMP1GameMode::RollDice);
-    InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AMP1GameMode::RollDice);
-    InputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
+    PC->InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMP1GameMode::RollDice);
+    PC->InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AMP1GameMode::RollDice);
+    PC->InputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
 }
 
 void AMP1GameMode::RollDice()
