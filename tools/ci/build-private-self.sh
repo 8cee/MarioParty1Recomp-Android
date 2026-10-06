@@ -246,6 +246,19 @@ window_text = window_text.replace(
     'SDL_GetWindowPosition(windowHandle, &newWindowLeft, &newWindowTop);',
     'SDL_GetWindowPosition((SDL_Window *)windowHandle, &newWindowLeft, &newWindowTop);'
 )
+# Assert that every initialization-relevant DK64 Android window conversion was
+# actually applied. MP1 and DK64 pin identical RT64/RecompFrontend/NMR commits,
+# so a missed anchor here means the Android runtime patch is incomplete.
+for forbidden in (
+    'SDL_SetWindowFullscreen(windowHandle, SDL_WINDOW_FULLSCREEN_DESKTOP)',
+    'SDL_SetWindowFullscreen(windowHandle, 0)',
+    'SDL_GetWindowDisplayIndex(windowHandle)',
+    'SDL_GetWindowPosition(windowHandle, &newWindowLeft, &newWindowTop)',
+):
+    if forbidden in window_text:
+        raise SystemExit(f"Unpatched RT64 Android SDL window call remains: {forbidden}")
+if '#   elif defined(__ANDROID__)\\n        static_assert(false && "Android unimplemented");' in window_text:
+    raise SystemExit("RT64 Android native window path is still unimplemented")
 # Add narrow Android breadcrumbs around RT64's window wrapper construction.
 # These go to logcat even if the renderer never returns to mp1_main.cpp.
 if '#include <android/log.h>' not in window_text:
