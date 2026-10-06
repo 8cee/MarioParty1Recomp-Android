@@ -9,6 +9,7 @@ import argparse, hashlib, json, struct
 from pathlib import Path
 
 EXPECTED_SHA1 = "1159bd56730094bfc71be30113e1cfc8bacf34f3"\nMAINFS_START = 0x31C7E0\nMAINFS_END = 0xFCB860
+MAX_DECODED_ENTRY = 32 * 1024 * 1024
 
 def be32(data: bytes, off: int) -> int:
     if off < 0 or off + 4 > len(data):
@@ -103,6 +104,10 @@ def manifest(data: bytes, base: int) -> dict:
                 raise ValueError(f"file {d:04X}/{f:04X} header outside main-FS range")
             decoded_size = be32(data, h)
             compression = be32(data, h + 4)
+            if decoded_size > MAX_DECODED_ENTRY:
+                raise ValueError(f"file {d:04X}/{f:04X} decoded size is implausible: {decoded_size}")
+            if compression not in (0, 1):
+                raise ValueError(f"file {d:04X}/{f:04X} has unsupported compression type {compression}")
             payload = h + 8
             decoded = decode_entry(data, payload, decoded_size, compression)
             entries.append({
@@ -126,6 +131,7 @@ def main() -> None:
     if sha1 != EXPECTED_SHA1:
         raise SystemExit(f"unsupported ROM SHA-1 {sha1}; expected {EXPECTED_SHA1}")
     out = manifest(data, locate_mainfs(data))
+    out["schema"] = "mp1-mainfs-manifest-v1"
     out["rom_sha1"] = sha1
     text = json.dumps(out, indent=2) + "\n"
     if args.output:
