@@ -16,6 +16,7 @@ public:
     AMP1BumperBallsArena();
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
 
     void SetHumanInput(const FVector2D& Input) { HumanInput = Input; }
