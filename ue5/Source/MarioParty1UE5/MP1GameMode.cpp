@@ -3,6 +3,7 @@
 #include "MP1BoardActor.h"
 #include "MP1PlayerPawn.h"
 #include "MP1HUD.h"
+#include "MP1BumperBallsArena.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
@@ -137,7 +138,15 @@ void AMP1GameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    if (!bMoving || bAwaitingBranch || bGameComplete) return;
+    if (bGameComplete) return;
+
+    if (bInMinigame)
+    {
+        UpdateBumperBalls();
+        return;
+    }
+
+    if (!bMoving || bAwaitingBranch) return;
 
     MoveAccumulator += DeltaSeconds;
     while (bMoving && MoveAccumulator >= MoveStepInterval)
@@ -149,6 +158,8 @@ void AMP1GameMode::Tick(float DeltaSeconds)
 
 void AMP1GameMode::RollDice()
 {
+    if (bInMinigame) return;
+
     if (bAwaitingBranch)
     {
         ConfirmBranch();
@@ -294,14 +305,98 @@ void AMP1GameMode::NextTurn()
     if (CurrentPlayer >= Players.Num())
     {
         CurrentPlayer = 0;
-        Round++;
-        if (Round > MaxRounds)
-        {
-            Round = MaxRounds;
-            bGameComplete = true;
-            StatusText += TEXT("  - Game complete");
-            return;
-        }
-        StatusText += FString::Printf(TEXT("  - Round %d begins"), Round);
+        StartBumperBalls();
     }
+}
+
+void AMP1GameMode::StartBumperBalls()
+{
+    bInMinigame = true;
+    bMoving = false;
+    bAwaitingBranch = false;
+    StatusText = TEXT("BUMPER BALLS - WASD / Left Stick - knock everyone off!");
+
+    for (AMP1PlayerPawn* Pawn : Pawns)
+    {
+        if (Pawn) Pawn->SetActorHiddenInGame(true);
+    }
+    if (Board) Board->SetActorHiddenInGame(true);
+
+    const FVector ArenaLocation(0.0f, 0.0f, 4200.0f);
+    BumperBallsArena = GetWorld()->SpawnActor<AMP1BumperBallsArena>(
+        AMP1BumperBallsArena::StaticClass(), ArenaLocation, FRotator::ZeroRotator);
+
+    if (BoardCamera)
+    {
+        BoardCamera->SetActorLocation(FVector(0, -3100, 5600));
+        BoardCamera->SetActorRotation(FRotator(-27.0f, 90.0f, 0.0f));
+    }
+}
+
+void AMP1GameMode::UpdateBumperBalls()
+{
+    if (!BumperBallsArena) return;
+
+    APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+    FVector2D Input = FVector2D::ZeroVector;
+    if (PC)
+    {
+        Input.X = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+        Input.Y = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+
+        if (PC->IsInputKeyDown(EKeys::A) || PC->IsInputKeyDown(EKeys::Left)) Input.X -= 1.0f;
+        if (PC->IsInputKeyDown(EKeys::D) || PC->IsInputKeyDown(EKeys::Right)) Input.X += 1.0f;
+        if (PC->IsInputKeyDown(EKeys::S) || PC->IsInputKeyDown(EKeys::Down)) Input.Y -= 1.0f;
+        if (PC->IsInputKeyDown(EKeys::W) || PC->IsInputKeyDown(EKeys::Up)) Input.Y += 1.0f;
+    }
+
+    BumperBallsArena->SetHumanInput(Input.GetClampedToMaxSize(1.0f));
+
+    if (BumperBallsArena->IsFinished())
+    {
+        FinishBumperBalls();
+    }
+}
+
+void AMP1GameMode::FinishBumperBalls()
+{
+    if (!BumperBallsArena) return;
+
+    const int32 Winner = BumperBallsArena->GetWinnerIndex();
+    if (Players.IsValidIndex(Winner))
+    {
+        Players[Winner].Coins += 10;
+        StatusText = FString::Printf(TEXT("Player %d wins Bumper Balls! +10 coins"), Winner + 1);
+    }
+    else
+    {
+        StatusText = TEXT("Bumper Balls ended in a draw.");
+    }
+
+    BumperBallsArena->Destroy();
+    BumperBallsArena = nullptr;
+    bInMinigame = false;
+
+    if (Board) Board->SetActorHiddenInGame(false);
+    for (AMP1PlayerPawn* Pawn : Pawns)
+    {
+        if (Pawn) Pawn->SetActorHiddenInGame(false);
+    }
+
+    if (BoardCamera)
+    {
+        BoardCamera->SetActorLocation(FVector(0, -3500, 3600));
+        BoardCamera->SetActorRotation(FRotator(-42.0f, 90.0f, 0.0f));
+    }
+
+    Round++;
+    if (Round > MaxRounds)
+    {
+        Round = MaxRounds;
+        bGameComplete = true;
+        StatusText += TEXT(" - Game complete");
+        return;
+    }
+
+    StatusText += FString::Printf(TEXT(" - Round %d begins"), Round);
 }
