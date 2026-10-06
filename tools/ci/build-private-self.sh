@@ -191,7 +191,62 @@ new = '''#   elif defined(__ANDROID__)
         bounds.height = Height;'''
 if old not in window_text:
     raise SystemExit("RT64 Android ApplicationWindow anchor missing")
-window_cpp.write_text(window_text.replace(old, new, 1))
+window_text = window_text.replace(old, new, 1)
+
+# Match the proven DK64 Android SDL/Vulkan handle path. RT64 has several
+# desktop-oriented call sites that use RenderWindow directly; on Android the
+# SDL Vulkan build must consistently treat that handle as SDL_Window*.
+old = '''        windowHandle = window;
+
+#   if defined(RT64_SDL_WINDOW_VULKAN)
+        sdlWindow = window;
+#   endif'''
+new = '''        windowHandle = window;
+
+#   if defined(__ANDROID__) && defined(RT64_SDL_WINDOW_VULKAN)
+        sdlWindow = (SDL_Window *)window;
+#   elif defined(RT64_SDL_WINDOW_VULKAN)
+        sdlWindow = window;
+#   endif'''
+if old not in window_text:
+    raise SystemExit("RT64 Android SDL constructor handle anchor missing")
+window_text = window_text.replace(old, new, 1)
+
+old = '''#   if defined(_WIN32)
+        windowHandle = wmInfo.info.win.window;
+#   elif defined(RT64_SDL_WINDOW_VULKAN)
+        windowHandle = sdlWindow;
+#   elif defined(__ANDROID__)
+        static_assert(false && "Android unimplemented");'''
+new = '''#   if defined(_WIN32)
+        windowHandle = wmInfo.info.win.window;
+#   elif defined(__ANDROID__) && defined(RT64_SDL_WINDOW_VULKAN)
+        windowHandle = (RenderWindow)sdlWindow;
+#   elif defined(RT64_SDL_WINDOW_VULKAN)
+        windowHandle = sdlWindow;
+#   elif defined(__ANDROID__)
+        static_assert(false && "Android requires RT64_SDL_WINDOW_VULKAN");'''
+if old not in window_text:
+    raise SystemExit("RT64 Android SDL native handle anchor missing")
+window_text = window_text.replace(old, new, 1)
+
+window_text = window_text.replace(
+    'SDL_SetWindowFullscreen(windowHandle, SDL_WINDOW_FULLSCREEN_DESKTOP);',
+    'SDL_SetWindowFullscreen((SDL_Window *)windowHandle, SDL_WINDOW_FULLSCREEN_DESKTOP);'
+)
+window_text = window_text.replace(
+    'SDL_SetWindowFullscreen(windowHandle, 0);',
+    'SDL_SetWindowFullscreen((SDL_Window *)windowHandle, 0);'
+)
+window_text = window_text.replace(
+    'int displayIndex = SDL_GetWindowDisplayIndex(windowHandle);',
+    'int displayIndex = SDL_GetWindowDisplayIndex((SDL_Window *)windowHandle);'
+)
+window_text = window_text.replace(
+    'SDL_GetWindowPosition(windowHandle, &newWindowLeft, &newWindowTop);',
+    'SDL_GetWindowPosition((SDL_Window *)windowHandle, &newWindowLeft, &newWindowTop);'
+)
+window_cpp.write_text(window_text)
 
 types = Path("lib/rt64/src/contrib/plume/plume_render_interface_types.h")
 types_text = types.read_text()
