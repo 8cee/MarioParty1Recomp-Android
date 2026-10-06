@@ -55,6 +55,26 @@ void AMP1BumperBallsArena::SpawnArena()
     }
 }
 
+void AMP1BumperBallsArena::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    for (AMP1BumperBallPawn* Ball : Balls)
+    {
+        if (IsValid(Ball))
+        {
+            Ball->Destroy();
+        }
+    }
+    Balls.Reset();
+
+    if (IsValid(Platform))
+    {
+        Platform->Destroy();
+        Platform = nullptr;
+    }
+
+    Super::EndPlay(EndPlayReason);
+}
+
 void AMP1BumperBallsArena::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
