@@ -101,7 +101,18 @@ bool AMP1BoardActor::LoadBoardJson(const FString& JsonPath)
         FMP1BoardSpaceData S;
         S.Index = Obj->GetIntegerField(TEXT("index"));
         const int32 RawType = Obj->GetIntegerField(TEXT("type"));
-        S.Type = static_cast<EMP1SpaceType>(FMath::Clamp(RawType, 0, static_cast<int32>(EMP1SpaceType::Neutral)));
+        switch (RawType & 0xFF)
+        {
+            case 1: S.Type = EMP1SpaceType::Blue; break;
+            case 2: S.Type = EMP1SpaceType::Red; break;
+            case 3: S.Type = EMP1SpaceType::Minigame; break;
+            case 4: S.Type = EMP1SpaceType::Happening; break;
+            case 5: S.Type = EMP1SpaceType::Star; break;
+            case 6: S.Type = EMP1SpaceType::Chance; break;
+            case 8: S.Type = EMP1SpaceType::Mushroom; break;
+            case 9: S.Type = EMP1SpaceType::Bowser; break;
+            default: S.Type = EMP1SpaceType::Neutral; break;
+        }
         S.Location = FVector(
             static_cast<float>((*Position)[0]->AsNumber()),
             static_cast<float>((*Position)[1]->AsNumber()),
