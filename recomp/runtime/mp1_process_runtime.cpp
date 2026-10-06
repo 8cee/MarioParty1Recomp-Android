@@ -3,6 +3,7 @@
 #include <pthread.h>
 #elif defined(_WIN32)
 #include <cstdarg>
+#include <cstdio>
 #include <process.h>
 enum { ANDROID_LOG_DEBUG = 3, ANDROID_LOG_WARN = 5, ANDROID_LOG_ERROR = 6 };
 static int __android_log_print(int, const char* tag, const char* fmt, ...) {
