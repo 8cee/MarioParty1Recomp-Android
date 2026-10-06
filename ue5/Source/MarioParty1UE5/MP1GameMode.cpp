@@ -20,6 +20,7 @@
 
 AMP1GameMode::AMP1GameMode()
 {
+    PrimaryActorTick.bCanEverTick = true;
     DefaultPawnClass = nullptr;
     HUDClass = AMP1HUD::StaticClass();
 }
@@ -128,33 +129,70 @@ void AMP1GameMode::BindInput()
     PC->InputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
 }
 
+void AMP1GameMode::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!bMoving || bGameComplete) return;
+
+    MoveAccumulator += DeltaSeconds;
+    while (bMoving && MoveAccumulator >= MoveStepInterval)
+    {
+        MoveAccumulator -= MoveStepInterval;
+        AdvanceMovementOneSpace();
+    }
+}
+
 void AMP1GameMode::RollDice()
 {
-    if (bMoving || !Players.IsValidIndex(CurrentPlayer)) return;
+    if (bMoving || bGameComplete || !Players.IsValidIndex(CurrentPlayer)) return;
 
     // MP1's normal die is 1-10.
     const int32 Roll = FMath::RandRange(1, 10);
     StatusText = FString::Printf(TEXT("Player %d rolled %d"), CurrentPlayer + 1, Roll);
-    MoveCurrentPlayer(Roll);
+    BeginMoveCurrentPlayer(Roll);
 }
 
-void AMP1GameMode::MoveCurrentPlayer(int32 Steps)
+void AMP1GameMode::BeginMoveCurrentPlayer(int32 Steps)
 {
     bMoving = true;
+    PendingSteps = Steps;
+    MoveAccumulator = MoveStepInterval;
+}
+
+void AMP1GameMode::AdvanceMovementOneSpace()
+{
+    if (!Players.IsValidIndex(CurrentPlayer) || !Board)
+    {
+        FinishMovement();
+        return;
+    }
 
     FMP1PlayerState& P = Players[CurrentPlayer];
-    for (int32 i = 0; i < Steps; ++i)
-    {
-        P.SpaceIndex = Board->GetNextSpace(P.SpaceIndex);
-    }
+    P.SpaceIndex = Board->GetNextSpace(P.SpaceIndex);
 
     if (Pawns.IsValidIndex(CurrentPlayer) && Pawns[CurrentPlayer])
     {
         Pawns[CurrentPlayer]->SetBoardLocation(Board->GetSpaceLocation(P.SpaceIndex));
     }
 
-    ResolveLanding(P);
-    NextTurn();
+    PendingSteps--;
+    if (PendingSteps <= 0)
+    {
+        FinishMovement();
+    }
+}
+
+void AMP1GameMode::FinishMovement()
+{
+    if (Players.IsValidIndex(CurrentPlayer))
+    {
+        ResolveLanding(Players[CurrentPlayer]);
+        NextTurn();
+    }
+
+    PendingSteps = 0;
+    MoveAccumulator = 0.0f;
     bMoving = false;
 }
 
@@ -200,6 +238,7 @@ void AMP1GameMode::NextTurn()
         if (Round > MaxRounds)
         {
             Round = MaxRounds;
+            bGameComplete = true;
             StatusText += TEXT("  - Game complete");
             return;
         }
