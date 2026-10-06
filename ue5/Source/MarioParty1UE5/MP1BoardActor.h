@@ -34,6 +34,9 @@ public:
     int32 GetNextSpace(int32 Index) const;
 
     UFUNCTION(BlueprintPure)
+    TArray<int32> GetNextSpaces(int32 Index) const;
+
+    UFUNCTION(BlueprintPure)
     FVector GetSpaceLocation(int32 Index) const;
 
     const TArray<FMP1BoardSpaceData>& GetSpaces() const { return Spaces; }
