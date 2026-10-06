@@ -8,6 +8,10 @@ on:
       - 'ue5/**'
       - '.github/workflows/ue5-win64.yml'
 
+concurrency:
+  group: mp1-ue5-win64
+  cancel-in-progress: true
+
 jobs:
   package-win64:
     runs-on: windows-latest
