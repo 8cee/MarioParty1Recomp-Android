@@ -1,0 +1,44 @@
+name: Mario Party UE5 Win64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package-win64:
+    runs-on: [self-hosted, Windows, X64, UE5]
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Locate Unreal Engine
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not configured on the UE5 runner." }
+          $uat = Join-Path $env:UE_ROOT "Engine\Build\BatchFiles\RunUAT.bat"
+          if (-not (Test-Path $uat)) { throw "RunUAT.bat not found under UE_ROOT=$env:UE_ROOT" }
+          echo "UAT=$uat" >> $env:GITHUB_ENV
+
+      - name: Package Win64
+        shell: powershell
+        run: |
+          & "$env:UAT" BuildCookRun -project="$env:GITHUB_WORKSPACE\ue5\MarioParty1UE5.uproject" -noP4 -build -cook -stage -pak -archive -archivedirectory="$env:GITHUB_WORKSPACE\dist" -platform=Win64 -clientconfig=Development -utf8output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify executable
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem "$env:GITHUB_WORKSPACE\dist" -Recurse -Filter "MarioParty1UE5.exe" | Select-Object -First 1
+          if (-not $exe) { throw "MarioParty1UE5.exe was not produced." }
+          Write-Host "UE5 executable: $($exe.FullName)"
+
+      - name: Upload Win64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarioParty1UE5-Win64
+          path: dist/**
+          if-no-files-found: error
+          retention-days: 30
