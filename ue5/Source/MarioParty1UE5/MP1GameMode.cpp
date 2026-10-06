@@ -5,6 +5,7 @@
 #include "MP1HUD.h"
 #include "MP1BumperBallsArena.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/InputComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/StaticMeshActor.h"
@@ -122,15 +123,18 @@ void AMP1GameMode::BindInput()
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (!PC) return;
 
-    if (!PC->InputComponent) return;
+    BoardInputComponent = NewObject<UInputComponent>(this, TEXT("MP1BoardInput"));
+    if (!BoardInputComponent) return;
 
-    PC->InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMP1GameMode::RollDice);
-    PC->InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AMP1GameMode::RollDice);
-    PC->InputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
-    PC->InputComponent->BindKey(EKeys::Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
-    PC->InputComponent->BindKey(EKeys::Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
-    PC->InputComponent->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
-    PC->InputComponent->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
+    BoardInputComponent->RegisterComponent();
+    BoardInputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMP1GameMode::RollDice);
+    BoardInputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AMP1GameMode::RollDice);
+    BoardInputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
+    BoardInputComponent->BindKey(EKeys::Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
+    BoardInputComponent->BindKey(EKeys::Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
+    BoardInputComponent->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
+    BoardInputComponent->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
+    PC->PushInputComponent(BoardInputComponent);
 }
 
 void AMP1GameMode::Tick(float DeltaSeconds)
