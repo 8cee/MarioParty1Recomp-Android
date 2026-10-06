@@ -8,6 +8,7 @@
 class AMP1BoardActor;
 class AMP1PlayerPawn;
 class ACameraActor;
+class AMP1BumperBallsArena;
 
 UCLASS()
 class MARIOPARTY1UE5_API AMP1GameMode : public AGameModeBase
@@ -59,12 +60,16 @@ private:
     UPROPERTY()
     TArray<FMP1PlayerState> Players;
 
+    UPROPERTY()
+    TObjectPtr<AMP1BumperBallsArena> BumperBallsArena;
+
     int32 CurrentPlayer = 0;
     int32 Round = 1;
     int32 MaxRounds = 20;
     bool bMoving = false;
     bool bAwaitingBranch = false;
     bool bGameComplete = false;
+    bool bInMinigame = false;
     int32 PendingSteps = 0;
     float MoveAccumulator = 0.0f;
     float MoveStepInterval = 0.22f;
@@ -80,5 +85,8 @@ private:
     void FinishMovement();
     void ResolveLanding(FMP1PlayerState& Player);
     void NextTurn();
+    void StartBumperBalls();
+    void UpdateBumperBalls();
+    void FinishBumperBalls();
     void BindInput();
 };
