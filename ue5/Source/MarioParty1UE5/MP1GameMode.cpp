@@ -61,7 +61,6 @@ void AMP1GameMode::SpawnEnvironment()
     {
         Fill->SetActorLocation(FVector(0, 0, 2500.0f));
         Fill->GetLightComponent()->SetIntensity(25000.0f);
-        Fill->GetLightComponent()->SetAttenuationRadius(7000.0f);
     }
 }
 
