@@ -18,6 +18,7 @@ public:
     AMP1GameMode();
 
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintCallable, Category="Mario Party")
     void RollDice();
@@ -53,11 +54,17 @@ private:
     int32 Round = 1;
     int32 MaxRounds = 20;
     bool bMoving = false;
+    bool bGameComplete = false;
+    int32 PendingSteps = 0;
+    float MoveAccumulator = 0.0f;
+    float MoveStepInterval = 0.22f;
     FString StatusText;
 
     void SpawnBoardAndPlayers();
     void SpawnEnvironment();
-    void MoveCurrentPlayer(int32 Steps);
+    void BeginMoveCurrentPlayer(int32 Steps);
+    void AdvanceMovementOneSpace();
+    void FinishMovement();
     void ResolveLanding(FMP1PlayerState& Player);
     void NextTurn();
     void BindInput();
