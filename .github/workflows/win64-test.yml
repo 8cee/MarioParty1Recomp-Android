@@ -47,24 +47,29 @@ jobs:
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows freetype:x64-windows
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure
         shell: powershell
         run: |
-          cmake -S desktop -B build-win -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake -S desktop -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build
         shell: powershell
         run: |
-          cmake --build build-win --config Release --target MarioParty1Recomp -- /m
+          cmake --build build-win --target MarioParty1Recomp -- -j 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force dist\MarioParty1Recomp-Win64 | Out-Null
-          Copy-Item build-win\Release\MarioParty1Recomp.exe dist\MarioParty1Recomp-Win64\
-          Get-ChildItem build-win\Release\*.dll -ErrorAction SilentlyContinue | Copy-Item -Destination dist\MarioParty1Recomp-Win64\
+          Copy-Item build-win\MarioParty1Recomp.exe dist\MarioParty1Recomp-Win64\
+          Get-ChildItem build-win\*.dll -ErrorAction SilentlyContinue | Copy-Item -Destination dist\MarioParty1Recomp-Win64\
           Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination dist\MarioParty1Recomp-Win64\
           Set-Content -Path dist\MarioParty1Recomp-Win64\README.txt -Value "Place verified Mario Party (USA) ROM beside MarioParty1Recomp.exe as marioparty.us.z64, then run the EXE. You may also drag the ROM onto the EXE."
           if (-not (Test-Path dist\MarioParty1Recomp-Win64\MarioParty1Recomp.exe)) { throw 'EXE was not produced' }
