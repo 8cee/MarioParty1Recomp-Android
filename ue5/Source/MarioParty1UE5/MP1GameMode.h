@@ -25,8 +25,16 @@ public:
     UFUNCTION(BlueprintPure, Category="Mario Party")
     int32 GetCurrentPlayer() const { return CurrentPlayer; }
 
-    UFUNCTION(BlueprintPure, Category="Mario Party")
     const TArray<FMP1PlayerState>& GetPlayers() const { return Players; }
+
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    int32 GetRound() const { return Round; }
+
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    int32 GetMaxRounds() const { return MaxRounds; }
+
+    UFUNCTION(BlueprintPure, Category="Mario Party")
+    FString GetStatusText() const { return StatusText; }
 
 private:
     UPROPERTY()
@@ -42,9 +50,13 @@ private:
     TArray<FMP1PlayerState> Players;
 
     int32 CurrentPlayer = 0;
+    int32 Round = 1;
+    int32 MaxRounds = 20;
     bool bMoving = false;
+    FString StatusText;
 
     void SpawnBoardAndPlayers();
+    void SpawnEnvironment();
     void MoveCurrentPlayer(int32 Steps);
     void ResolveLanding(FMP1PlayerState& Player);
     void NextTurn();
