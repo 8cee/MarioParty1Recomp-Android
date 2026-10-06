@@ -10,7 +10,7 @@ on:
 
 jobs:
   package-win64:
-    runs-on: [self-hosted, Windows, X64, UE5]
+    runs-on: windows-latest
     timeout-minutes: 180
     steps:
       - name: Checkout
@@ -22,9 +22,28 @@ jobs:
       - name: Locate Unreal Engine
         shell: powershell
         run: |
-          if (-not $env:UE_ROOT) { throw "UE_ROOT is not configured on the UE5 runner." }
-          $uat = Join-Path $env:UE_ROOT "Engine\Build\BatchFiles\RunUAT.bat"
-          if (-not (Test-Path $uat)) { throw "RunUAT.bat not found under UE_ROOT=$env:UE_ROOT" }
+          $candidates = @(
+            $env:UE_ROOT,
+            "C:\Program Files\Epic Games\UE_5.6",
+            "C:\Program Files\Epic Games\UE_5.5",
+            "C:\Program Files\Epic Games\UE_5.4",
+            "D:\UnrealEngine",
+            "D:\UE5"
+          ) | Where-Object { $_ -and $_.Length -gt 0 }
+          $root = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path (Join-Path $candidate "Engine\Build\BatchFiles\RunUAT.bat")) {
+              $root = $candidate
+              break
+            }
+          }
+          if (-not $root) {
+            Write-Host "UE5 is not installed on this GitHub-hosted runner."
+            Get-ChildItem "C:\Program Files" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+            throw "No Unreal Engine installation available for packaging."
+          }
+          $uat = Join-Path $root "Engine\Build\BatchFiles\RunUAT.bat"
+          echo "UE_ROOT=$root" >> $env:GITHUB_ENV
           echo "UAT=$uat" >> $env:GITHUB_ENV
 
       - name: Package Win64
