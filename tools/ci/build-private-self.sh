@@ -246,6 +246,30 @@ window_text = window_text.replace(
     'SDL_GetWindowPosition(windowHandle, &newWindowLeft, &newWindowTop);',
     'SDL_GetWindowPosition((SDL_Window *)windowHandle, &newWindowLeft, &newWindowTop);'
 )
+# Add narrow Android breadcrumbs around RT64's window wrapper construction.
+# These go to logcat even if the renderer never returns to mp1_main.cpp.
+if '#include <android/log.h>' not in window_text:
+    window_text = window_text.replace(
+        '#include "rt64_application_window.h"',
+        '#include "rt64_application_window.h"\n#if defined(__ANDROID__)\n#include <android/log.h>\n#endif',
+        1
+    )
+ctor_anchor = '        windowHandle = window;'
+if ctor_anchor not in window_text:
+    raise SystemExit("RT64 diagnostic constructor anchor missing")
+window_text = window_text.replace(
+    ctor_anchor,
+    '#if defined(__ANDROID__)\n        __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "ApplicationWindow ctor begin");\n#endif\n' + ctor_anchor,
+    1
+)
+bounds_anchor = '        bounds.width = Width;\n        bounds.height = Height;'
+if bounds_anchor not in window_text:
+    raise SystemExit("RT64 diagnostic bounds anchor missing")
+window_text = window_text.replace(
+    bounds_anchor,
+    bounds_anchor + '\n#if defined(__ANDROID__)\n        __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "ApplicationWindow Android bounds ready %dx%d", bounds.width, bounds.height);\n#endif',
+    1
+)
 window_cpp.write_text(window_text)
 
 types = Path("lib/rt64/src/contrib/plume/plume_render_interface_types.h")
