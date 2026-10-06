@@ -23,6 +23,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="Mario Party")
     void RollDice();
 
+    UFUNCTION(BlueprintCallable, Category="Mario Party")
+    void SelectBranchLeft();
+
+    UFUNCTION(BlueprintCallable, Category="Mario Party")
+    void SelectBranchRight();
+
+    UFUNCTION(BlueprintCallable, Category="Mario Party")
+    void ConfirmBranch();
+
     UFUNCTION(BlueprintPure, Category="Mario Party")
     int32 GetCurrentPlayer() const { return CurrentPlayer; }
 
@@ -54,10 +63,14 @@ private:
     int32 Round = 1;
     int32 MaxRounds = 20;
     bool bMoving = false;
+    bool bAwaitingBranch = false;
     bool bGameComplete = false;
     int32 PendingSteps = 0;
     float MoveAccumulator = 0.0f;
     float MoveStepInterval = 0.22f;
+    int32 BranchChoiceIndex = 0;
+    int32 ForcedNextSpace = INDEX_NONE;
+    TArray<int32> BranchOptions;
     FString StatusText;
 
     void SpawnBoardAndPlayers();
