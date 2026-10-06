@@ -355,12 +355,12 @@ front = frontend.read_text()
 front_anchor = '#include <memory>'
 if front_anchor not in front:
     raise SystemExit("RecompFrontend RT64 include anchor missing")
-front = front.replace(front_anchor, '#if defined(__ANDROID__)\\n#include <android/log.h>\\n#endif\\n' + front_anchor, 1)
+front = front.replace(front_anchor, '#if defined(__ANDROID__)\n#include <android/log.h>\n#endif\n' + front_anchor, 1)
 for before, after in (
     ('    app = std::make_unique<RT64::Application>(appCore, appConfig);',
-     '#if defined(__ANDROID__)\\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "construct Application begin");\\n#endif\\n    app = std::make_unique<RT64::Application>(appCore, appConfig);\\n#if defined(__ANDROID__)\\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "construct Application done");\\n#endif'),
+     '#if defined(__ANDROID__)\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "construct Application begin");\n#endif\n    app = std::make_unique<RT64::Application>(appCore, appConfig);\n#if defined(__ANDROID__)\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "construct Application done");\n#endif'),
     ('    setup_result = map_setup_result(app->setup(thread_id));',
-     '#if defined(__ANDROID__)\\n    app->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Vulkan;\\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "Application setup begin (Vulkan)");\\n#endif\\n    setup_result = map_setup_result(app->setup(thread_id));\\n#if defined(__ANDROID__)\\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "Application setup returned %d", int(setup_result));\\n#endif'),
+     '#if defined(__ANDROID__)\n    app->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Vulkan;\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "Application setup begin (Vulkan)");\n#endif\n    setup_result = map_setup_result(app->setup(thread_id));\n#if defined(__ANDROID__)\n    __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "Application setup returned %d", int(setup_result));\n#endif'),
 ):
     if before not in front:
         raise SystemExit("RecompFrontend RT64 setup anchor missing")
