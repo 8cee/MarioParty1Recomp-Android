@@ -27,6 +27,16 @@ void mp1_register_overlays();
 std::vector<recomp::GameEntry> supported_games;
 SDL_Window* window = nullptr;
 
+extern "C" void mp1_diag_set_directory(const char*) {}
+extern "C" void mp1_diag(const char* stage, const char* detail) {
+    std::fprintf(stdout, "[%s] %s\n", stage ? stage : "runtime", detail ? detail : "");
+    std::fflush(stdout);
+}
+extern "C" void mp1_diag_error(const char* stage, const char* detail) {
+    std::fprintf(stderr, "[%s] %s\n", stage ? stage : "runtime", detail ? detail : "");
+    std::fflush(stderr);
+}
+
 namespace {
 constexpr std::uint64_t kMarioPartyUsXxh3 = 0x19f905a0cbc9fe8fULL;
 constexpr int kOutputRate = 48000;
