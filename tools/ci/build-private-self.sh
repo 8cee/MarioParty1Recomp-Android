@@ -371,7 +371,7 @@ frontend.write_text(front)
 rt64_app = Path("lib/rt64/src/hle/rt64_application.cpp")
 app_text = rt64_app.read_text()
 if '#include <android/log.h>' not in app_text:
-    app_text = '#if defined(__ANDROID__)\\n#include <android/log.h>\\n#endif\\n' + app_text
+    app_text = '#if defined(__ANDROID__)\n#include <android/log.h>\n#endif\n' + app_text
 for target, label in (
     ('        // Create the application window.', 'window setup'),
     ('        // Detect refresh rate from the display the window is located at.', 'refresh detection'),
@@ -385,7 +385,7 @@ for target, label in (
 ):
     if target not in app_text:
         raise SystemExit(f"RT64 setup stage anchor missing: {label}")
-    marker = '#if defined(__ANDROID__)\\n        __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "RT64 setup stage: ' + label + '");\\n#endif\\n'
+    marker = '#if defined(__ANDROID__)\n        __android_log_print(ANDROID_LOG_INFO, "MP1RT64", "RT64 setup stage: ' + label + '");\n#endif\n'
     app_text = app_text.replace(target, marker + target, 1)
 rt64_app.write_text(app_text)
 
