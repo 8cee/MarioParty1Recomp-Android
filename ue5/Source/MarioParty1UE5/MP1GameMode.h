@@ -9,6 +9,7 @@ class AMP1BoardActor;
 class AMP1PlayerPawn;
 class ACameraActor;
 class AMP1BumperBallsArena;
+class UInputComponent;
 
 UCLASS()
 class MARIOPARTY1UE5_API AMP1GameMode : public AGameModeBase
@@ -71,6 +72,9 @@ private:
 
     UPROPERTY()
     TObjectPtr<AMP1BumperBallsArena> BumperBallsArena;
+
+    UPROPERTY()
+    TObjectPtr<UInputComponent> BoardInputComponent;
 
     int32 CurrentPlayer = 0;
     int32 Round = 1;
