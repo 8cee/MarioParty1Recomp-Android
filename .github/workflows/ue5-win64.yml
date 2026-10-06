@@ -2,6 +2,11 @@ name: Mario Party UE5 Win64
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ue5/**'
+      - '.github/workflows/ue5-win64.yml'
 
 jobs:
   package-win64:
