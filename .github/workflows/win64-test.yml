@@ -1,0 +1,78 @@
+name: Mario Party Win64 Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/win64-test.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Restore generated Mario Party sources
+        uses: actions/download-artifact@v4
+        with:
+          name: MarioParty1Recomp-generated-sources
+          repository: 8cee/MarioParty1Recomp-Android
+          run-id: 37440287832
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .generated-cache
+
+      - name: Install generated sources
+        shell: powershell
+        run: |
+          tar -xzf .generated-cache/MarioParty1Recomp-generated-sources.tar.gz
+          if (-not (Test-Path recomp/rsp/aspMain.cpp)) { throw 'RSP source missing' }
+          if (-not (Get-ChildItem recomp/generated/funcs_*.c -ErrorAction SilentlyContinue)) { throw 'Generated CPU sources missing' }
+
+      - name: Prepare vcpkg
+        shell: powershell
+        run: |
+          if (-not $env:VCPKG_INSTALLATION_ROOT) { throw 'GitHub vcpkg installation not found' }
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows freetype:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure
+        shell: powershell
+        run: |
+          cmake -S desktop -B build-win -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build
+        shell: powershell
+        run: |
+          cmake --build build-win --config Release --target MarioParty1Recomp -- /m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force dist\MarioParty1Recomp-Win64 | Out-Null
+          Copy-Item build-win\Release\MarioParty1Recomp.exe dist\MarioParty1Recomp-Win64\
+          Get-ChildItem build-win\Release\*.dll -ErrorAction SilentlyContinue | Copy-Item -Destination dist\MarioParty1Recomp-Win64\
+          Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination dist\MarioParty1Recomp-Win64\
+          Set-Content -Path dist\MarioParty1Recomp-Win64\README.txt -Value "Place verified Mario Party (USA) ROM beside MarioParty1Recomp.exe as marioparty.us.z64, then run the EXE. You may also drag the ROM onto the EXE."
+          if (-not (Test-Path dist\MarioParty1Recomp-Win64\MarioParty1Recomp.exe)) { throw 'EXE was not produced' }
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarioParty1Recomp-Win64
+          path: dist/MarioParty1Recomp-Win64/**
+          if-no-files-found: error
+          retention-days: 30
