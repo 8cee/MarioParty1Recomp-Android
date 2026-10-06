@@ -3,6 +3,11 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Dom/JsonObject.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 AMP1BoardActor::AMP1BoardActor()
 {
@@ -27,9 +32,97 @@ void AMP1BoardActor::OnConstruction(const FTransform& Transform)
     Super::OnConstruction(Transform);
     if (Spaces.IsEmpty())
     {
-        BuildPrototypeBoard();
+        const FString DefaultBoard = FPaths::ProjectContentDir() / TEXT("MP1/Boards/DK.json");
+        if (!LoadBoardJson(DefaultBoard))
+        {
+            BuildPrototypeBoard();
+        }
     }
     RebuildInstances();
+}
+
+
+bool AMP1BoardActor::LoadBoardJson(const FString& JsonPath)
+{
+    FString Text;
+    if (!FFileHelper::LoadFileToString(Text, *JsonPath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> RootObject;
+    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Text);
+    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
+    {
+        return false;
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* JsonSpaces = nullptr;
+    if (!RootObject->TryGetArrayField(TEXT("spaces"), JsonSpaces) || JsonSpaces == nullptr)
+    {
+        return false;
+    }
+
+    TArray<FMP1BoardSpaceData> Parsed;
+    Parsed.Reserve(JsonSpaces->Num());
+
+    for (const TSharedPtr<FJsonValue>& Value : *JsonSpaces)
+    {
+        const TSharedPtr<FJsonObject> Obj = Value.IsValid() ? Value->AsObject() : nullptr;
+        if (!Obj.IsValid())
+        {
+            return false;
+        }
+
+        const TArray<TSharedPtr<FJsonValue>>* Position = nullptr;
+        if (!Obj->TryGetArrayField(TEXT("position_ue"), Position) || Position == nullptr || Position->Num() != 3)
+        {
+            return false;
+        }
+
+        FMP1BoardSpaceData S;
+        S.Index = Obj->GetIntegerField(TEXT("index"));
+        const int32 RawType = Obj->GetIntegerField(TEXT("type"));
+        S.Type = static_cast<EMP1SpaceType>(FMath::Clamp(RawType, 0, static_cast<int32>(EMP1SpaceType::Neutral)));
+        S.Location = FVector(
+            static_cast<float>((*Position)[0]->AsNumber()),
+            static_cast<float>((*Position)[1]->AsNumber()),
+            static_cast<float>((*Position)[2]->AsNumber())
+        );
+        Parsed.Add(S);
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* Chains = nullptr;
+    if (RootObject->TryGetArrayField(TEXT("chains_b"), Chains) && Chains != nullptr)
+    {
+        for (const TSharedPtr<FJsonValue>& ChainValue : *Chains)
+        {
+            const TArray<TSharedPtr<FJsonValue>>& Chain = ChainValue->AsArray();
+            for (int32 i = 0; i + 1 < Chain.Num(); ++i)
+            {
+                const int32 From = static_cast<int32>(Chain[i]->AsNumber());
+                const int32 To = static_cast<int32>(Chain[i + 1]->AsNumber());
+                if (Parsed.IsValidIndex(From) && Parsed.IsValidIndex(To))
+                {
+                    Parsed[From].Next.AddUnique(To);
+                }
+            }
+        }
+    }
+
+    // Preserve a playable route even if a board chain endpoint has no outgoing
+    // edge in the exported table. Real branch selection is migrated per board.
+    for (int32 i = 0; i < Parsed.Num(); ++i)
+    {
+        if (Parsed[i].Next.IsEmpty() && Parsed.Num() > 1)
+        {
+            Parsed[i].Next.Add((i + 1) % Parsed.Num());
+        }
+    }
+
+    Spaces = MoveTemp(Parsed);
+    RebuildInstances();
+    return !Spaces.IsEmpty();
 }
 
 void AMP1BoardActor::BuildPrototypeBoard()
