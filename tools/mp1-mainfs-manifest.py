@@ -36,6 +36,57 @@ def locate_mainfs(data: bytes) -> int:
         raise ValueError("main-FS directory offset outside pinned range")
     return MAINFS_START
 
+def decode_type1(src: bytes, expected_size: int) -> bytes:
+    """Decode MP1 compression type 1 (0x400-byte LZ ring)."""
+    ring = bytearray(0x400)
+    ring_pos = 0
+    pos = 0
+    out = bytearray()
+    while len(out) < expected_size:
+        if pos >= len(src):
+            raise ValueError("truncated type-1 control stream")
+        control = src[pos]
+        pos += 1
+        for _ in range(8):
+            if len(out) >= expected_size:
+                break
+            if control & 1:
+                if pos >= len(src):
+                    raise ValueError("truncated type-1 literal")
+                value = src[pos]
+                pos += 1
+                out.append(value)
+                ring[ring_pos] = value
+                ring_pos = (ring_pos + 1) & 0x3FF
+            else:
+                if pos + 2 > len(src):
+                    raise ValueError("truncated type-1 backreference")
+                a, b = src[pos], src[pos + 1]
+                pos += 2
+                read_pos = (((b & 0xC0) << 2) | a) & 0x3FF
+                length = (b & 0x3F) + 3
+                for n in range(length):
+                    if len(out) >= expected_size:
+                        break
+                    value = ring[(read_pos + n + 66) & 0x3FF]
+                    out.append(value)
+                    ring[ring_pos] = value
+                    ring_pos = (ring_pos + 1) & 0x3FF
+            control >>= 1
+    return bytes(out)
+
+def decode_entry(data: bytes, payload: int, decoded_size: int, compression: int) -> bytes:
+    if compression == 0:
+        end = payload + decoded_size
+        if end > MAINFS_END:
+            raise ValueError("raw entry exceeds main-FS range")
+        return data[payload:end]
+    if compression == 1:
+        # The decoder terminates from decoded_size, so only expose bytes that
+        # remain inside the pinned main-FS region to the compressed reader.
+        return decode_type1(data[payload:MAINFS_END], decoded_size)
+    raise ValueError(f"unsupported MP1 compression type {compression}")
+
 def manifest(data: bytes, base: int) -> dict:
     dir_count, dir_offsets = table(data, base)
     entries = []
@@ -52,13 +103,16 @@ def manifest(data: bytes, base: int) -> dict:
                 raise ValueError(f"file {d:04X}/{f:04X} header outside main-FS range")
             decoded_size = be32(data, h)
             compression = be32(data, h + 4)
+            payload = h + 8
+            decoded = decode_entry(data, payload, decoded_size, compression)
             entries.append({
                 "id": f"{d:04X}/{f:04X}",
                 "directory": d,
                 "file": f,
-                "rom_offset": h + 8,
+                "rom_offset": payload,
                 "decoded_size": decoded_size,
                 "compression_type": compression,
+                "decoded_sha256": hashlib.sha256(decoded).hexdigest(),
             })
     return {"mainfs_rom_offset": base, "mainfs_rom_end": MAINFS_END, "directory_count": dir_count, "file_count": len(entries), "files": entries}
 
