@@ -127,13 +127,17 @@ void AMP1GameMode::BindInput()
     PC->InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AMP1GameMode::RollDice);
     PC->InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &AMP1GameMode::RollDice);
     PC->InputComponent->BindKey(EKeys::Gamepad_FaceButton_Bottom, IE_Pressed, this, &AMP1GameMode::RollDice);
+    PC->InputComponent->BindKey(EKeys::Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
+    PC->InputComponent->BindKey(EKeys::Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
+    PC->InputComponent->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AMP1GameMode::SelectBranchLeft);
+    PC->InputComponent->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AMP1GameMode::SelectBranchRight);
 }
 
 void AMP1GameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    if (!bMoving || bGameComplete) return;
+    if (!bMoving || bAwaitingBranch || bGameComplete) return;
 
     MoveAccumulator += DeltaSeconds;
     while (bMoving && MoveAccumulator >= MoveStepInterval)
@@ -145,6 +149,12 @@ void AMP1GameMode::Tick(float DeltaSeconds)
 
 void AMP1GameMode::RollDice()
 {
+    if (bAwaitingBranch)
+    {
+        ConfirmBranch();
+        return;
+    }
+
     if (bMoving || bGameComplete || !Players.IsValidIndex(CurrentPlayer)) return;
 
     // MP1's normal die is 1-10.
@@ -169,7 +179,30 @@ void AMP1GameMode::AdvanceMovementOneSpace()
     }
 
     FMP1PlayerState& P = Players[CurrentPlayer];
-    P.SpaceIndex = Board->GetNextSpace(P.SpaceIndex);
+
+    if (ForcedNextSpace == INDEX_NONE)
+    {
+        BranchOptions = Board->GetNextSpaces(P.SpaceIndex);
+        if (BranchOptions.Num() > 1)
+        {
+            bAwaitingBranch = true;
+            BranchChoiceIndex = 0;
+            StatusText = FString::Printf(TEXT("Player %d: choose route %d/%d with Left/Right, confirm with A/Space"),
+                CurrentPlayer + 1, BranchChoiceIndex + 1, BranchOptions.Num());
+            return;
+        }
+    }
+
+    if (ForcedNextSpace != INDEX_NONE)
+    {
+        P.SpaceIndex = ForcedNextSpace;
+        ForcedNextSpace = INDEX_NONE;
+        BranchOptions.Reset();
+    }
+    else
+    {
+        P.SpaceIndex = Board->GetNextSpace(P.SpaceIndex);
+    }
 
     if (Pawns.IsValidIndex(CurrentPlayer) && Pawns[CurrentPlayer])
     {
@@ -194,6 +227,33 @@ void AMP1GameMode::FinishMovement()
     PendingSteps = 0;
     MoveAccumulator = 0.0f;
     bMoving = false;
+}
+
+
+void AMP1GameMode::SelectBranchLeft()
+{
+    if (!bAwaitingBranch || BranchOptions.IsEmpty()) return;
+    BranchChoiceIndex = (BranchChoiceIndex - 1 + BranchOptions.Num()) % BranchOptions.Num();
+    StatusText = FString::Printf(TEXT("Player %d: route %d/%d selected"),
+        CurrentPlayer + 1, BranchChoiceIndex + 1, BranchOptions.Num());
+}
+
+void AMP1GameMode::SelectBranchRight()
+{
+    if (!bAwaitingBranch || BranchOptions.IsEmpty()) return;
+    BranchChoiceIndex = (BranchChoiceIndex + 1) % BranchOptions.Num();
+    StatusText = FString::Printf(TEXT("Player %d: route %d/%d selected"),
+        CurrentPlayer + 1, BranchChoiceIndex + 1, BranchOptions.Num());
+}
+
+void AMP1GameMode::ConfirmBranch()
+{
+    if (!bAwaitingBranch || !BranchOptions.IsValidIndex(BranchChoiceIndex)) return;
+
+    ForcedNextSpace = BranchOptions[BranchChoiceIndex];
+    bAwaitingBranch = false;
+    MoveAccumulator = 0.0f;
+    AdvanceMovementOneSpace();
 }
 
 void AMP1GameMode::ResolveLanding(FMP1PlayerState& Player)
