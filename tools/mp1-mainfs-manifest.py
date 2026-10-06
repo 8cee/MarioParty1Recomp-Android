@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse, hashlib, json, struct
 from pathlib import Path
 
-EXPECTED_SHA1 = "1159bd56730094bfc71be30113e1cfc8bacf34f3"
+EXPECTED_SHA1 = "1159bd56730094bfc71be30113e1cfc8bacf34f3"\nMAINFS_START = 0x31C7E0\nMAINFS_END = 0xFCB860
 
 def be32(data: bytes, off: int) -> int:
     if off < 0 or off + 4 > len(data):
@@ -23,49 +23,33 @@ def table(data: bytes, base: int) -> tuple[int, list[int]]:
     return count, offsets
 
 def locate_mainfs(data: bytes) -> int:
-    # DataInit receives the main-FS ROM address at runtime. Until that callsite
-    # is promoted to a generated constant, locate the nested table structurally.
-    # Candidate must contain sane directory offsets and sane first file headers.
-    candidates = []
-    for base in range(0, len(data) - 0x40, 4):
-        count = be32(data, base)
-        if not (1 <= count <= 512):
-            continue
-        end = base + 4 + count * 4
-        if end > len(data):
-            continue
-        offs = [be32(data, base + 4 + i * 4) for i in range(min(count, 8))]
-        if not offs or offs[0] < 4 + count * 4 or any(o >= len(data) - base for o in offs):
-            continue
-        if offs != sorted(offs):
-            continue
-        try:
-            dbase = base + offs[0]
-            files = be32(data, dbase)
-            if not (1 <= files <= 4096):
-                continue
-            first = be32(data, dbase + 4)
-            if first < 4 + files * 4 or dbase + first + 8 > len(data):
-                continue
-            size = be32(data, dbase + first)
-            comp = be32(data, dbase + first + 4)
-            if size == 0 or size > 0x2000000 or comp not in (0, 1):
-                continue
-            candidates.append(base)
-        except (ValueError, struct.error):
-            pass
-    if len(candidates) != 1:
-        raise RuntimeError(f"expected one main-FS candidate, found {len(candidates)}: {[hex(x) for x in candidates[:16]]}")
-    return candidates[0]
+    # Pinned for the supported NTSC-U ROM. The decomp/MP1 tooling identify the
+    # main filesystem as 0x31C7E0..0xFCB860.
+    if len(data) < MAINFS_END:
+        raise ValueError("ROM is too small for the NTSC-U main filesystem")
+    count, offsets = table(data, MAINFS_START)
+    if not (1 <= count <= 512):
+        raise ValueError(f"invalid main-FS directory count {count}")
+    if offsets != sorted(offsets):
+        raise ValueError("main-FS directory offsets are not monotonic")
+    if any(o < 4 + count * 4 or MAINFS_START + o >= MAINFS_END for o in offsets):
+        raise ValueError("main-FS directory offset outside pinned range")
+    return MAINFS_START
 
 def manifest(data: bytes, base: int) -> dict:
     dir_count, dir_offsets = table(data, base)
     entries = []
     for d, doff in enumerate(dir_offsets):
         dbase = base + doff
+        if not (MAINFS_START <= dbase < MAINFS_END):
+            raise ValueError(f"directory {d} outside main-FS range")
         file_count, file_offsets = table(data, dbase)
+        if file_offsets != sorted(file_offsets):
+            raise ValueError(f"directory {d} file offsets are not monotonic")
         for f, foff in enumerate(file_offsets):
             h = dbase + foff
+            if foff < 4 + file_count * 4 or h + 8 > MAINFS_END:
+                raise ValueError(f"file {d:04X}/{f:04X} header outside main-FS range")
             decoded_size = be32(data, h)
             compression = be32(data, h + 4)
             entries.append({
@@ -76,7 +60,7 @@ def manifest(data: bytes, base: int) -> dict:
                 "decoded_size": decoded_size,
                 "compression_type": compression,
             })
-    return {"mainfs_rom_offset": base, "directory_count": dir_count, "file_count": len(entries), "files": entries}
+    return {"mainfs_rom_offset": base, "mainfs_rom_end": MAINFS_END, "directory_count": dir_count, "file_count": len(entries), "files": entries}
 
 def main() -> None:
     ap = argparse.ArgumentParser()
