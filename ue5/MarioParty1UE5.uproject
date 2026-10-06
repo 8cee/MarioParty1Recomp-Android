@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Category": "Games",
+  "Description": "Mario Party 1 recomp runtime integration for Unreal Engine 5",
+  "Modules": [
+    {
+      "Name": "MarioParty1UE5",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "TargetPlatforms": [
+    "Win64",
+    "Android"
+  ]
+}
