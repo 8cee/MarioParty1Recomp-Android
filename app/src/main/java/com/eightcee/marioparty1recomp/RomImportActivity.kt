@@ -53,10 +53,14 @@ class RomImportActivity : Activity() {
     }
 
     private fun showReadyScreen() {
-        val archiveReady = AssetArchive.isReady(assetArchive)
+        val archiveState = AssetArchive.state(assetArchive)
+        val archiveReady = archiveState == AssetArchive.State.READY
         status = TextView(this).apply {
-            text = if (archiveReady) "Mario Party assets ready"
-                   else "Mario Party (USA) ROM ready — asset extraction required"
+            text = when (archiveState) {
+                AssetArchive.State.READY -> "Mario Party assets ready"
+                AssetArchive.State.STALE -> "Mario Party assets are stale — rebuild required"
+                AssetArchive.State.MISSING -> "Mario Party (USA) ROM ready — asset extraction optional"
+            }
         }
         val play = Button(this).apply {
             text = if (archiveReady) "PLAY" else "PLAY (RAW ROM)"
