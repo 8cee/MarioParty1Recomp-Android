@@ -308,6 +308,11 @@ void AMP1GameMode::NextTurn()
     }
 }
 
+float AMP1GameMode::GetMinigameSecondsRemaining() const
+{
+    return BumperBallsArena ? BumperBallsArena->GetSecondsRemaining() : 0.0f;
+}
+
 void AMP1GameMode::StartBumperBalls()
 {
     bInMinigame = true;
@@ -392,10 +397,41 @@ void AMP1GameMode::FinishBumperBalls()
     if (Round > MaxRounds)
     {
         Round = MaxRounds;
-        bGameComplete = true;
-        StatusText += TEXT(" - Game complete");
+        FinishGame();
         return;
     }
 
     StatusText += FString::Printf(TEXT(" - Round %d begins"), Round);
+}
+
+void AMP1GameMode::FinishGame()
+{
+    bGameComplete = true;
+    bInMinigame = false;
+    bMoving = false;
+    bAwaitingBranch = false;
+
+    WinnerIndex = INDEX_NONE;
+    for (int32 I = 0; I < Players.Num(); ++I)
+    {
+        if (WinnerIndex == INDEX_NONE ||
+            Players[I].Stars > Players[WinnerIndex].Stars ||
+            (Players[I].Stars == Players[WinnerIndex].Stars && Players[I].Coins > Players[WinnerIndex].Coins))
+        {
+            WinnerIndex = I;
+        }
+    }
+
+    if (Players.IsValidIndex(WinnerIndex))
+    {
+        StatusText = FString::Printf(
+            TEXT("GAME COMPLETE - Player %d wins with %d stars and %d coins!"),
+            WinnerIndex + 1,
+            Players[WinnerIndex].Stars,
+            Players[WinnerIndex].Coins);
+    }
+    else
+    {
+        StatusText = TEXT("GAME COMPLETE");
+    }
 }
