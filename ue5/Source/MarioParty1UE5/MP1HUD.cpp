@@ -19,10 +19,20 @@ void AMP1HUD::DrawHUD()
     DrawText(TEXT("MARIO PARTY 1 - UE5 REMAKE"), FLinearColor::White, X, Y, nullptr, 1.35f);
     Y += 42.0f;
 
-    DrawText(
-        FString::Printf(TEXT("Round %d / %d   |   Player %d turn   |   SPACE / ENTER / A = Roll Dice"),
-            GM->GetRound(), GM->GetMaxRounds(), GM->GetCurrentPlayer() + 1),
-        FLinearColor::Yellow, X, Y, nullptr, 1.0f);
+    if (GM->IsInMinigame())
+    {
+        DrawText(
+            FString::Printf(TEXT("BUMPER BALLS   |   %.0f seconds   |   WASD / Left Stick"),
+                GM->GetMinigameSecondsRemaining()),
+            FLinearColor::Yellow, X, Y, nullptr, 1.0f);
+    }
+    else
+    {
+        DrawText(
+            FString::Printf(TEXT("Round %d / %d   |   Player %d turn   |   SPACE / ENTER / A = Roll Dice"),
+                GM->GetRound(), GM->GetMaxRounds(), GM->GetCurrentPlayer() + 1),
+            FLinearColor::Yellow, X, Y, nullptr, 1.0f);
+    }
     Y += 38.0f;
 
     for (const FMP1PlayerState& P : Players)
