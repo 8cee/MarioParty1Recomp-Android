@@ -13,6 +13,10 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 AMP1GameMode::AMP1GameMode()
 {
@@ -62,6 +66,29 @@ void AMP1GameMode::SpawnEnvironment()
 void AMP1GameMode::SpawnBoardAndPlayers()
 {
     Board = GetWorld()->SpawnActor<AMP1BoardActor>(AMP1BoardActor::StaticClass(), FTransform::Identity);
+
+    FString RomPath;
+    if (!FParse::Value(FCommandLine::Get(), TEXT("rom="), RomPath))
+    {
+        const FString BesideExe = FPaths::Combine(FPaths::LaunchDir(), TEXT("marioparty.us.z64"));
+        const FString SavedRom = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("MP1/marioparty.us.z64"));
+        if (IFileManager::Get().FileExists(*BesideExe))
+        {
+            RomPath = BesideExe;
+        }
+        else if (IFileManager::Get().FileExists(*SavedRom))
+        {
+            RomPath = SavedRom;
+        }
+    }
+
+    if (!RomPath.IsEmpty() && Board)
+    {
+        if (Board->LoadBoardFromRom(RomPath, 0x45))
+        {
+            StatusText = TEXT("Loaded original DK's Jungle Adventure board from ROM.");
+        }
+    }
 
     Players.SetNum(4);
     Pawns.SetNum(4);
