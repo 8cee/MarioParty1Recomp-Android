@@ -1,5 +1,20 @@
+#if defined(__ANDROID__)
 #include <android/log.h>
 #include <pthread.h>
+#elif defined(_WIN32)
+#include <cstdarg>
+#include <process.h>
+enum { ANDROID_LOG_DEBUG = 3, ANDROID_LOG_WARN = 5, ANDROID_LOG_ERROR = 6 };
+static int __android_log_print(int, const char* tag, const char* fmt, ...) {
+    std::fprintf(stderr, "[%s] ", tag ? tag : "MP1");
+    va_list args;
+    va_start(args, fmt);
+    const int result = std::vfprintf(stderr, fmt, args);
+    va_end(args);
+    std::fprintf(stderr, "\n");
+    return result;
+}
+#endif
 
 #include <condition_variable>
 #include <chrono>
@@ -91,8 +106,15 @@ bool g_scheduler_logged = false;
         host->cv.notify_all();
         lock.unlock();
     }
+#if defined(__ANDROID__)
     pthread_exit(nullptr);
     __builtin_unreachable();
+#elif defined(_WIN32)
+    _endthreadex(0);
+    __assume(0);
+#else
+    std::terminate();
+#endif
 }
 
 void call_guest(ProcessHost* host, uint32_t vram) {
