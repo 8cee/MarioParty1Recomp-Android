@@ -389,6 +389,68 @@ for target, label in (
     app_text = app_text.replace(target, marker + target, 1)
 rt64_app.write_text(app_text)
 
+# Route RT64's Android stage markers to the persistent diagnostic file,
+# rather than logcat alone. This lets SHARE DIAGNOSTICS work after a native
+# crash without USB debugging.
+front = frontend.read_text()
+if 'extern "C" void mp1_diag(' not in front:
+    front = front.replace('#include <memory>', '#if defined(__ANDROID__)\nextern "C" void mp1_diag(const char*, const char*);\n#endif\n#include <memory>', 1)
+import re
+front, marker_count = re.subn(
+    r'__android_log_print\(ANDROID_LOG_INFO, "MP1RT64", "([^"]+)"(?:, int\(setup_result\))?\);',
+    lambda match: (
+        'mp1_diag("rt64", "' + match.group(1).replace('%d', 'see result below') + '");'
+        if '%d' not in match.group(1) else
+        '{ char setup_detail[96]; std::snprintf(setup_detail, sizeof(setup_detail), "Application setup returned %d", int(setup_result)); mp1_diag("rt64", setup_detail); }'
+    ), front
+)
+if marker_count < 3:
+    raise SystemExit(f"Expected at least 3 RT64 frontend markers; found {marker_count}")
+frontend.write_text(front)
+
+app_text = rt64_app.read_text()
+if 'extern "C" void mp1_diag(' not in app_text:
+    app_text = app_text.replace('#if defined(__ANDROID__)', '#if defined(__ANDROID__)\nextern "C" void mp1_diag(const char*, const char*);', 1)
+app_text, stage_count = re.subn(
+    r'__android_log_print\(ANDROID_LOG_INFO, "MP1RT64", "RT64 setup stage: ([^"]+)"\);',
+    lambda match: 'mp1_diag("rt64", "RT64 setup stage: ' + match.group(1) + '");',
+    app_text
+)
+if stage_count < 8:
+    raise SystemExit(f"Expected at least 8 RT64 setup markers; found {stage_count}")
+# An early Windows-only error return shares the same text as the success
+# return. Move that instrumentation to the real successful setup exit.
+app_text = app_text.replace(
+    'mp1_diag("rt64", "RT64 setup stage: setup complete");\n#endif\n        return SetupResult::Success;',
+    '#endif\n        return SetupResult::Success;',
+    1
+)
+end_anchor = '        state->rdp->setGBI();'
+if end_anchor not in app_text:
+    raise SystemExit("RT64 final setup anchor missing")
+app_text = app_text.replace(
+    end_anchor,
+    end_anchor + '\n#if defined(__ANDROID__)\n        mp1_diag("rt64", "RT64 setup stage: setup complete");\n#endif',
+    1
+)
+rt64_app.write_text(app_text)
+
+window_text = window_cpp.read_text()
+if 'extern "C" void mp1_diag(' not in window_text:
+    window_text = window_text.replace(
+        '#include "rt64_application_window.h"',
+        '#include "rt64_application_window.h"\n#if defined(__ANDROID__)\nextern "C" void mp1_diag(const char*, const char*);\n#endif', 1
+    )
+window_text = window_text.replace(
+    '__android_log_print(ANDROID_LOG_INFO, "MP1RT64", "ApplicationWindow ctor begin");',
+    'mp1_diag("rt64", "ApplicationWindow ctor begin");'
+)
+window_text = window_text.replace(
+    '__android_log_print(ANDROID_LOG_INFO, "MP1RT64", "ApplicationWindow Android bounds ready %dx%d", bounds.width, bounds.height);',
+    '{ char dimensions[96]; std::snprintf(dimensions, sizeof(dimensions), "ApplicationWindow Android bounds ready %ux%u", bounds.width, bounds.height); mp1_diag("rt64", dimensions); }'
+)
+window_cpp.write_text(window_text)
+
 print("Applied deterministic RT64/Plume/Zstd Android adjustments")
 PY
 
