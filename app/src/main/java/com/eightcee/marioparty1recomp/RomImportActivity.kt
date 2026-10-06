@@ -13,6 +13,7 @@ class RomImportActivity : Activity() {
     private val requestRom = 1001
     private lateinit var status: TextView
     private val romFile get() = File(filesDir, "roms/marioparty.us.z64")
+    private val assetArchive get() = File(filesDir, "assets/marioparty.o2r")
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -48,14 +49,21 @@ class RomImportActivity : Activity() {
         }
         if (romFile.exists()) romFile.delete()
         if (!tmp.renameTo(romFile)) { tmp.copyTo(romFile, overwrite=true); tmp.delete() }
-        launch()
+        showReadyScreen()
     }
 
     private fun showReadyScreen() {
-        status = TextView(this).apply { text = "Mario Party (USA) ROM ready" }
+        val archiveReady = AssetArchive.isReady(assetArchive)
+        status = TextView(this).apply {
+            text = if (archiveReady) "Mario Party assets ready"
+                   else "Mario Party (USA) ROM ready — asset extraction required"
+        }
         val play = Button(this).apply {
-            text = "PLAY"
-            setOnClickListener { launch() }
+            text = if (archiveReady) "PLAY" else "BUILD GAME ASSETS"
+            setOnClickListener {
+                if (AssetArchive.isReady(assetArchive)) launch()
+                else status.text = "MP1 O2R extractor is not installed in this build yet."
+            }
         }
         val diagnostics = diagnosticButton()
         setContentView(LinearLayout(this).apply {
