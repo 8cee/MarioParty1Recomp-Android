@@ -55,7 +55,7 @@ jobs:
       - name: Configure
         shell: powershell
         run: |
-          cmake -S desktop -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake -S desktop -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" -DCURL_INCLUDE_DIR="$env:VCPKG_ROOT\installed\x64-windows\include" -DCURL_LIBRARY="$env:VCPKG_ROOT\installed\x64-windows\lib\libcurl.lib" -DFREETYPE_INCLUDE_DIRS="$env:VCPKG_ROOT\installed\x64-windows\include" -DFREETYPE_LIBRARY_RELEASE="$env:VCPKG_ROOT\installed\x64-windows\lib\freetype.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build
