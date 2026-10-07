@@ -1,4 +1,5 @@
 #include <algorithm>
+// CI trigger: Win64 playable validation
 #include <array>
 #include <cstdint>
 #include <cstdio>
